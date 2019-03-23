@@ -4,7 +4,7 @@
 - KakaoTalk must be running before run this program
 
 ## Download
-- Go https://github.com/blurfx/KakaoTalkAdBlock/releases
+- Go [Releases](https://github.com/blurfx/KakaoTalkAdBlock/releases)
 - Download `KakakoTalkAdBlock.zip`
 - Extract zip and Run output
 
