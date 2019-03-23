@@ -8,17 +8,19 @@ namespace KakaoTalkAdBlock
     class Program
     {
         [DllImport("user32.dll")]
-        public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
+        static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
 
         [DllImport("user32.dll")]
-        private static extern bool EnumChildWindows(IntPtr WindowHandle, EnumWindowProcess Callback, IntPtr lParam);
+        static extern bool EnumChildWindows(IntPtr WindowHandle, EnumWindowProcess Callback, IntPtr lParam);
 
         [DllImport("user32.dll")]
-        public static extern Boolean ShowWindow(IntPtr hWnd, int nCmdShow);
+        static extern Boolean ShowWindow(IntPtr hWnd, int nCmdShow);
 
         [DllImport("user32.dll")]
         static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
+        [DllImport("user32.dll")]
+        static extern IntPtr GetParent(IntPtr hWnd);
 
         private delegate bool EnumWindowProcess(IntPtr Handle, IntPtr Parameter);
 
@@ -65,7 +67,7 @@ namespace KakaoTalkAdBlock
             {
                 GetClassName(childHwnd, windowClass, windowClass.Capacity);
 
-                if (windowClass.ToString().Equals("EVA_Window"))
+                if (windowClass.ToString().Equals("EVA_Window") && GetParent(childHwnd) == hwnd)
                 {
                     ShowWindow(childHwnd, 0);
                 }
