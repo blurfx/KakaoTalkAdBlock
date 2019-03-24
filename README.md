@@ -8,6 +8,6 @@
 - Download `KakakoTalkAdBlock.zip`
 - Extract zip and Run output
 
-## Before/After
+## At a glance
 
 ![](https://raw.githubusercontent.com/blurfx/KakaoTalkAdBlock/master/kakaotalk.png)
