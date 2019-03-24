@@ -3,9 +3,13 @@
 - Requires .NET Framework 4.6.2
 
 ## Download
-- Go [Releases](https://github.com/blurfx/KakaoTalkAdBlock/releases)
-- Download `KakakoTalkAdBlock.zip`
-- Extract zip and Run output
+- Download [publish/setup.exe](https://github.com/blurfx/KakaoTalkAdBlock/blob/master/publish/setup.exe)
+- Run `setup.exe`
+- It will update automatically :)
+
+## Update History
+
+- Go [Releases](https://github.com/blurfx/KakaoTalkAdBlock/releases) page 
 
 ## At a glance
 
