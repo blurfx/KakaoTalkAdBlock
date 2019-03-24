@@ -165,6 +165,7 @@ namespace KakaoTalkAdBlock
             var childHwnds = new List<IntPtr>();
             var windowClass = new StringBuilder(256);
             var windowCaption = new StringBuilder(256);
+            var windowParentCaption = new StringBuilder(256);
 
             while (true)
             {
@@ -197,10 +198,14 @@ namespace KakaoTalkAdBlock
                         GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
 
                         // hide ad
-                        if (windowClass.ToString().Equals("EVA_Window") && GetParent(childHwnd) == hwnd)
+                        if (windowClass.ToString().Equals("EVA_Window") )
                         {
-                            ShowWindow(childHwnd, 0);
-                            SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
+                            GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
+
+                            if(GetParent(childHwnd) == hwnd|| windowParentCaption.ToString().StartsWith("LockModeView")) { 
+                                ShowWindow(childHwnd, 0);
+                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
+                            }
                         }
 
                         // remove white area
@@ -208,6 +213,13 @@ namespace KakaoTalkAdBlock
                         {
                             var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
                             var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top) - 38; // 38; there might be dragon. don't touch it.
+                            UpdateWindow(hwnd);
+                            SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
+                        }
+
+                        if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == hwnd){
+                            var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
+                            var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top); // 38; there might be dragon. don't touch it.
                             UpdateWindow(hwnd);
                             SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
                         }
