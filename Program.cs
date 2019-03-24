@@ -87,7 +87,12 @@ namespace KakaoTalkAdBlock
             public const int SWP_SHOWWINDOW = 0x0040;
             //Displays the window.
         }
+        public delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
 
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+
+        const uint EVENT_OBJECT_LOCATIONCHANGE = 0x800B;
 
         [DllImport("user32.dll", SetLastError = false)]
         public static extern bool GetWindowRect(IntPtr hwnd, out RECT lpRect);
@@ -100,9 +105,10 @@ namespace KakaoTalkAdBlock
             public int Right;       // x position of lower-right corner
             public int Bottom;      // y position of lower-right corner
         }
-
-
-        
+        private const int WINEVENT_INCONTEXT = 4;
+        private const int WINEVENT_OUTOFCONTEXT = 0;
+        private const int WINEVENT_SKIPOWNPROCESS = 2;
+        private const int WINEVENT_SKIPOWNTHREAD = 1;
         private delegate bool EnumWindowProcess(IntPtr Handle, IntPtr Parameter);
 
         private static bool EnumWindow(IntPtr Handle, IntPtr Parameter)
@@ -114,28 +120,31 @@ namespace KakaoTalkAdBlock
             return true;
         }
 
+
         static void Main(string[] args)
         {
-            string[] KAKAOTALK_TITLE_STRING = {"카카오톡","Kakaotalk","カカオトーク"};
+            string[] KAKAOTALK_TITLE_STRING = { "카카오톡", "Kakaotalk", "カカオトーク" };
             //카카오톡 윈도우 찾기
             var hwnd = IntPtr.Zero;
-            foreach(string titleCandidate in KAKAOTALK_TITLE_STRING)
+            foreach (string titleCandidate in KAKAOTALK_TITLE_STRING)
             {
                 hwnd = FindWindow(null, titleCandidate);
                 if (hwnd != IntPtr.Zero) break;
             }
             //모든 언어에 해당하는 이름의 윈도우가 없는 경우 종료
             if (hwnd == IntPtr.Zero) return;
-                      
+
             //이 경우 한국어/영어/일본어의 윈도우는 보장됨
             Console.WriteLine("Passed");
+
+            HookManager.SubscribeToWindowEvents(hwnd);
 
             RECT rectKakaoTalkMain = new RECT();
             GetWindowRect(hwnd, out rectKakaoTalkMain);
 
             var childHwnds = new List<IntPtr>();
             var gcHandle = GCHandle.Alloc(childHwnds);
-            
+
             try
             {
                 EnumChildWindows(hwnd, new EnumWindowProcess(EnumWindow), GCHandle.ToIntPtr(gcHandle));
@@ -161,11 +170,59 @@ namespace KakaoTalkAdBlock
                 if (windowClass.ToString().Equals("EVA_ChildWindow") && GetParent(childHwnd) == hwnd)
                 {
                     SetWindowPos(
-                        childHwnd, 
-                        HwndInsertAfterInt.Bottom, 0, 0, rectKakaoTalkMain.Right-rectKakaoTalkMain.Left, (rectKakaoTalkMain.Bottom - rectKakaoTalkMain.Top - 36), SetWindowPosFlags.SWP_NOMOVE);
+                        childHwnd,
+                        HwndInsertAfterInt.Bottom, 0, 0, rectKakaoTalkMain.Right - rectKakaoTalkMain.Left, (rectKakaoTalkMain.Bottom - rectKakaoTalkMain.Top - 36), SetWindowPosFlags.SWP_NOMOVE);
                 }
             }
         }
+        public static class HookManager {
+            public static void SubscribeToWindowEvents(IntPtr hwnd)
+            {
+                IntPtr windowEventHook 
+                    = SetWinEventHook(EVENT_OBJECT_LOCATIONCHANGE, EVENT_OBJECT_LOCATIONCHANGE, hwnd, HandleWinResizeEvent, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNTHREAD);
+                if (windowEventHook == IntPtr.Zero)
+                {
+                    Console.WriteLine("event attach failed");
+                }
+            }
+        }
+        private static void HandleWinResizeEvent(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+        {
+            RECT rectKakaoTalkMain = new RECT();
+            GetWindowRect(hwnd, out rectKakaoTalkMain);
 
+            var childHwnds = new List<IntPtr>();
+            var gcHandle = GCHandle.Alloc(childHwnds);
+
+            try
+            {
+                EnumChildWindows(hwnd, new EnumWindowProcess(EnumWindow), GCHandle.ToIntPtr(gcHandle));
+            }
+            finally
+            {
+                if (gcHandle.IsAllocated)
+                    gcHandle.Free();
+            }
+
+            var windowClass = new StringBuilder(256);
+            foreach (var childHwnd in childHwnds)
+            {
+                GetClassName(childHwnd, windowClass, windowClass.Capacity);
+
+                //광고 클래스인 경우
+                if (windowClass.ToString().Equals("EVA_Window") && GetParent(childHwnd) == hwnd)
+                {
+                    ShowWindow(childHwnd, 0);
+                    SetWindowPos(childHwnd, HwndInsertAfterInt.Bottom, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
+                }
+                //카카오톡 친구 화면인 경우
+                if (windowClass.ToString().Equals("EVA_ChildWindow") && GetParent(childHwnd) == hwnd)
+                {
+                    SetWindowPos(
+                        childHwnd,
+                        HwndInsertAfterInt.Bottom, 0, 0, rectKakaoTalkMain.Right - rectKakaoTalkMain.Left, (rectKakaoTalkMain.Bottom - rectKakaoTalkMain.Top - 36), SetWindowPosFlags.SWP_NOMOVE);
+                }
+            }
+        }
     }
 }
