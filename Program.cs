@@ -216,6 +216,13 @@ namespace KakaoTalkAdBlock
                             UpdateWindow(hwnd);
                             SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
                         }
+
+                        if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == hwnd){
+                            var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
+                            var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top); // 38; there might be dragon. don't touch it.
+                            UpdateWindow(hwnd);
+                            SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
+                        }
                     }
                 }
                 Thread.Sleep(1000);
