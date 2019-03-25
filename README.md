@@ -4,8 +4,8 @@
 
 ## Download
 - Download [publish/setup.exe](https://github.com/blurfx/KakaoTalkAdBlock/blob/master/publish/setup.exe)
-- Run `setup.exe`
-- It will update automatically :)
+- Run `setup.exe` to install
+
 
 ## Update History
 
