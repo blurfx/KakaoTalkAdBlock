@@ -84,15 +84,13 @@ namespace KakaoTalkAdBlock
         static ContextMenuStrip buildContextMenu()
         {
             var contextMenu = new ContextMenuStrip();
+            var versionItem = new ToolStripMenuItem();
             var exitItem = new ToolStripMenuItem();
             var startupItem = new ToolStripMenuItem();
 
-            // exit menu
-            exitItem.Text = "종료(&x)";
-            exitItem.Click += new EventHandler(delegate (object sender, EventArgs e)
-            {
-                Environment.Exit(0);
-            });
+            // version
+            versionItem.Text = "v0.0.6";
+            versionItem.Enabled = false;
 
             // run on startup menu
             startupItem.Text = "윈도우 시작 시 자동 실행";
@@ -103,8 +101,6 @@ namespace KakaoTalkAdBlock
                 {
                     regStartup.DeleteValue(APP_NAME, false);
                     startupItem.Checked = false;
-
-
                 }
                 else
                 {
@@ -113,6 +109,14 @@ namespace KakaoTalkAdBlock
                 }
             });
 
+            // exit menu
+            exitItem.Text = "종료(&x)";
+            exitItem.Click += new EventHandler(delegate (object sender, EventArgs e)
+            {
+                Environment.Exit(0);
+            });
+
+            contextMenu.Items.Add(versionItem);
             contextMenu.Items.Add(startupItem);
             contextMenu.Items.Add("-");
             contextMenu.Items.Add(exitItem);
@@ -122,6 +126,15 @@ namespace KakaoTalkAdBlock
 
         static void Main(string[] args)
         {
+            bool isNotDuplicated = true;
+            var mutex = new Mutex(true, APP_NAME, out isNotDuplicated);
+
+            if (!isNotDuplicated)
+            {
+                MessageBox.Show("이미 실행중입니다");
+                return;
+            }
+
             // build trayicon
             NotifyIcon tray = new NotifyIcon(container);
             tray.Visible = true;
@@ -131,6 +144,7 @@ namespace KakaoTalkAdBlock
             watcherThread.Start();
             runnerThread.Start();
             Application.Run();
+            mutex.ReleaseMutex();
         }
 
 
