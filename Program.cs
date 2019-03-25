@@ -156,6 +156,7 @@ namespace KakaoTalkAdBlock
                     }
                     Thread.Sleep(1000);
                 }
+                Thread.Sleep(1000);
             }
         }
 
@@ -224,6 +225,7 @@ namespace KakaoTalkAdBlock
                             SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
                         }
                     }
+                    Thread.Sleep(1000);
                 }
                 Thread.Sleep(1000);
             }

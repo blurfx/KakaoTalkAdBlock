@@ -24,7 +24,7 @@
     <MapFileExtensions>true</MapFileExtensions>
     <InstallUrl>https://raw.githubusercontent.com/blurfx/KakaoTalkAdBlock/master/publish/</InstallUrl>
     <UpdateUrl>https://raw.githubusercontent.com/blurfx/KakaoTalkAdBlock/master/publish/</UpdateUrl>
-    <ApplicationRevision>4</ApplicationRevision>
+    <ApplicationRevision>5</ApplicationRevision>
     <ApplicationVersion>0.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -57,7 +57,7 @@
     <ApplicationIcon>Resources\icon.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
-    <SignManifests>true</SignManifests>
+    <SignManifests>false</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestCertificateThumbprint>6B9C795840072BD0362CC9173FBA2549C7DB8D17</ManifestCertificateThumbprint>
