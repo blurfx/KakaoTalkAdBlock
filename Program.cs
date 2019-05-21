@@ -216,11 +216,9 @@ namespace KakaoTalkAdBlock
                         GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
 
                         // hide popup ad
-
-                        if(windowClass.ToString().Equals("EVA_Window_Dblclk"))
+                        if (windowClass.ToString().Equals("EVA_Window_Dblclk"))
                         {
-                            GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
-                            if (windowParentCaption.ToString() == String.Empty)
+                            if (windowCaption.ToString() == String.Empty)
                             {
                                 ShowWindow(childHwnd, 0);
                                 SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
