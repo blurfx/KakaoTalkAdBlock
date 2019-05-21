@@ -39,6 +39,9 @@ namespace KakaoTalkAdBlock
         [DllImport("user32.dll")]
         static extern bool UpdateWindow(IntPtr hWnd);
 
+
+        const int UPDATE_RATE = 100;
+
         static class SetWindowPosFlags
         {
             public const int SWP_NOMOVE = 0x0002;
@@ -168,9 +171,9 @@ namespace KakaoTalkAdBlock
                     {
                         isKakaotalkRunning = true;
                     }
-                    Thread.Sleep(16);
+                    Thread.Sleep(UPDATE_RATE);
                 }
-                Thread.Sleep(16);
+                Thread.Sleep(UPDATE_RATE);
             }
         }
 
@@ -239,9 +242,9 @@ namespace KakaoTalkAdBlock
                             SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
                         }
                     }
-                    Thread.Sleep(16);
+                    Thread.Sleep(UPDATE_RATE);
                 }
-                Thread.Sleep(16);
+                Thread.Sleep(UPDATE_RATE);
             }
         }
     }
