@@ -27,7 +27,7 @@ body article {
   width: 1120px;
 }
 
-body article #kakao {
+body article .glance-wrapper {
   margin-left: auto;
 }
 
@@ -92,4 +92,32 @@ body article #kakao {
 .cleafix:after {
   content: "";
   clear: both;
+}
+@media(max-width:1000px){
+  article{
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  a > span{
+    font-size: 12px;
+  }
+  #hero{
+    display: flex;
+    width:100%;
+  }
+  #hero-content > h1 {
+    font-size: 2em;
+    font-weight: 600;
+    letter-spacing: -2px;
+  }
+  #kakao{
+    margin-top:32px;
+    margin-bottom:32px;
+    margin-left:20%!important;
+    margin-right:20%;
+    height:auto;
+    width:60%;
+    object-fit: contain;
+  }
 }
