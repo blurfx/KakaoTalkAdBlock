@@ -39,6 +39,9 @@ namespace KakaoTalkAdBlock
         [DllImport("user32.dll")]
         static extern bool UpdateWindow(IntPtr hWnd);
 
+
+        const int UPDATE_RATE = 100;
+
         static class SetWindowPosFlags
         {
             public const int SWP_NOMOVE = 0x0002;
@@ -89,7 +92,7 @@ namespace KakaoTalkAdBlock
             var startupItem = new ToolStripMenuItem();
 
             // version
-            versionItem.Text = "v0.0.6";
+            versionItem.Text = "v0.0.7";
             versionItem.Enabled = false;
 
             // run on startup menu
@@ -168,9 +171,9 @@ namespace KakaoTalkAdBlock
                     {
                         isKakaotalkRunning = true;
                     }
-                    Thread.Sleep(1000);
+                    Thread.Sleep(UPDATE_RATE);
                 }
-                Thread.Sleep(1000);
+                Thread.Sleep(UPDATE_RATE);
             }
         }
 
@@ -212,6 +215,19 @@ namespace KakaoTalkAdBlock
                         GetClassName(childHwnd, windowClass, windowClass.Capacity);
                         GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
 
+                        // hide popup ad
+
+                        if(windowClass.ToString().Equals("EVA_Window_Dblclk"))
+                        {
+                            GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
+                            if (windowParentCaption.ToString() == String.Empty)
+                            {
+                                ShowWindow(childHwnd, 0);
+                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
+                            }
+
+                        }
+
                         // hide ad
                         if (windowClass.ToString().Equals("EVA_Window") )
                         {
@@ -239,9 +255,9 @@ namespace KakaoTalkAdBlock
                             SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
                         }
                     }
-                    Thread.Sleep(1000);
+                    Thread.Sleep(UPDATE_RATE);
                 }
-                Thread.Sleep(1000);
+                Thread.Sleep(UPDATE_RATE);
             }
         }
     }
