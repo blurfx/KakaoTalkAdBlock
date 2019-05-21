@@ -1,0 +1,95 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Open Sans', -apple-system, sans-serif;
+  font-weight: 400;
+  outline: 0;
+}
+
+a {
+  text-decoration: none;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+}
+
+body, #hero {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body article {
+  display: flex;
+  width: 1120px;
+}
+
+body article #kakao {
+  margin-left: auto;
+}
+
+#hero {
+  flex-direction: column;
+  text-align: center;
+  width: 650px;
+}
+
+#hero-content > h1 {
+  font-size: 3em;
+  font-weight: 600;
+  letter-spacing: -2px;
+}
+
+#hero-content > span {
+  font-size: 1.5em;
+  line-height: 0.5em;
+  letter-spacing: -1px;
+}
+
+.button {
+  flex-direction: row;
+  flex: 0;
+  display: inline-block;
+}
+
+.button, .button:visited{
+  background: #1875f7;
+  color: #fff;
+  font-size: 1.25em;
+  margin-top: 1.5em;
+  padding: 0.5em 1em;
+}
+
+.button.arrow:before{
+  display: inline-block;
+  position: relative;
+  content: "";
+  top: -2px;
+  right: 4px;
+  margin-left: 4px;
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  border-right: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+}
+
+.button svg {
+  display: inline-block;
+  fill: #fff;
+  width: 1em;
+  vertical-align: middle;
+}
+
+.button span {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.cleafix:after {
+  content: "";
+  clear: both;
+}
