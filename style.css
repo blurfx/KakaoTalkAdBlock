@@ -6,9 +6,16 @@
   font-weight: 400;
   outline: 0;
 }
-
+nav{
+  display:flex;
+  justify-content: center;
+}
 a {
   text-decoration: none;
+  
+}
+a > span {
+  margin-left:8px;
 }
 
 html, body {
@@ -52,7 +59,10 @@ body article .glance-wrapper {
 .button {
   flex-direction: row;
   flex: 0;
-  display: inline-block;
+  display: inline-flex;
+  border-radius: 8px;
+  justify-content: center;
+  margin-right:12px;
 }
 
 .button, .button:visited{
@@ -60,16 +70,17 @@ body article .glance-wrapper {
   color: #fff;
   font-size: 1.25em;
   margin-top: 1.5em;
-  padding: 0.5em 1em;
+  padding: 0.5em 0.8em;
 }
 
-.button.arrow:before{
+.arrow:before{
   display: inline-block;
   position: relative;
   content: "";
-  top: -2px;
+  top: -4px;
   right: 4px;
   margin-left: 4px;
+  margin-right:4px;
   width: 6px;
   height: 6px;
   transform: rotate(45deg);
@@ -81,7 +92,9 @@ body article .glance-wrapper {
   display: inline-block;
   fill: #fff;
   width: 1em;
+  height:27px;
   vertical-align: middle;
+  margin-right:4px;
 }
 
 .button span {
@@ -101,6 +114,7 @@ body article .glance-wrapper {
   
   a > span{
     font-size: 12px;
+    
   }
   #hero{
     display: flex;
