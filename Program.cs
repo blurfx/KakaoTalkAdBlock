@@ -39,8 +39,8 @@ namespace KakaoTalkAdBlock
         [DllImport("user32.dll")]
         static extern bool UpdateWindow(IntPtr hWnd);
 
-
-        const int UPDATE_RATE = 100;
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = false)]
+        static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
 
         static class SetWindowPosFlags
         {
@@ -68,13 +68,12 @@ namespace KakaoTalkAdBlock
         }
         #endregion
 
-        #region Constants
+        #region Global Variables
         static string[] KAKAOTALK_TITLE_STRING = { "카카오톡", "Kakaotalk", "カカオトーク" };
 
         static string APP_NAME = "KakaoTalkAdBlock";
-        #endregion
 
-        #region Global Variables
+        
         static IntPtr hwnd = IntPtr.Zero;
         static Container container = new Container();
 
@@ -82,6 +81,10 @@ namespace KakaoTalkAdBlock
         static Thread runnerThread = new Thread(new ThreadStart(removeAd));
 
         static bool isKakaotalkRunning = false;
+
+        const int UPDATE_RATE = 100;
+
+        static uint WM_CLOSE = 0x10;
         #endregion
 
         static ContextMenuStrip buildContextMenu()
@@ -150,113 +153,111 @@ namespace KakaoTalkAdBlock
             mutex.ReleaseMutex();
         }
 
-
-    static void watchProcess()
-        {
-            while (true)
+        static void watchProcess()
             {
-                while (!isKakaotalkRunning)
+                while (true)
                 {
-                    System.Diagnostics.Debug.WriteLine("watching");
-                    hwnd = IntPtr.Zero;
-
-                    // find kakaotalk window
-                    foreach (string titleCandidate in KAKAOTALK_TITLE_STRING)
+                    while (!isKakaotalkRunning)
                     {
-                        hwnd = FindWindow(null, titleCandidate);
-                        if (hwnd != IntPtr.Zero) break;
-                    }
+                        System.Diagnostics.Debug.WriteLine("watching");
+                        hwnd = IntPtr.Zero;
 
-                    if (hwnd != IntPtr.Zero)
-                    {
-                        isKakaotalkRunning = true;
+                        // find kakaotalk window
+                        foreach (string titleCandidate in KAKAOTALK_TITLE_STRING)
+                        {
+                            hwnd = FindWindow(null, titleCandidate);
+                            if (hwnd != IntPtr.Zero) break;
+                        }
+
+                        if (hwnd != IntPtr.Zero)
+                        {
+                            isKakaotalkRunning = true;
+                        }
+                        Thread.Sleep(UPDATE_RATE);
                     }
                     Thread.Sleep(UPDATE_RATE);
                 }
-                Thread.Sleep(UPDATE_RATE);
             }
-        }
 
         static void removeAd()
-        {
-            
-            var childHwnds = new List<IntPtr>();
-            var windowClass = new StringBuilder(256);
-            var windowCaption = new StringBuilder(256);
-            var windowParentCaption = new StringBuilder(256);
-
-            while (true)
             {
-                while (isKakaotalkRunning)
+            
+                var childHwnds = new List<IntPtr>();
+                var windowClass = new StringBuilder(256);
+                var windowCaption = new StringBuilder(256);
+                var windowParentCaption = new StringBuilder(256);
+
+                while (true)
                 {
-                    childHwnds.Clear();
-                    var gcHandle = GCHandle.Alloc(childHwnds);
+                    while (isKakaotalkRunning)
+                    {
+                        childHwnds.Clear();
+                        var gcHandle = GCHandle.Alloc(childHwnds);
 
-                    // get handles from child windows
-                    try
-                    {
-                        EnumChildWindows(hwnd, new EnumWindowProcess(EnumWindow), GCHandle.ToIntPtr(gcHandle));
-                    }
-                    finally
-                    {
-                        if (gcHandle.IsAllocated) gcHandle.Free();
-                        if(childHwnds.Count == 0)
+                        // get handles from child windows
+                        try
                         {
-                            isKakaotalkRunning = false;
+                            EnumChildWindows(hwnd, new EnumWindowProcess(EnumWindow), GCHandle.ToIntPtr(gcHandle));
                         }
-                    }
-
-                    // get rect of kakaotalk
-                    RECT rectKakaoTalk = new RECT();
-                    GetWindowRect(hwnd, out rectKakaoTalk);
-                    // iterate all child windows of kakaotalk
-                    foreach (var childHwnd in childHwnds)
-                    {
-                        GetClassName(childHwnd, windowClass, windowClass.Capacity);
-                        GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
-
-                        // hide popup ad
-                        if (windowClass.ToString().Equals("EVA_Window_Dblclk"))
+                        finally
                         {
-                            if (windowCaption.ToString() == String.Empty)
+                            if (gcHandle.IsAllocated) gcHandle.Free();
+                            if(childHwnds.Count == 0)
                             {
-                                ShowWindow(childHwnd, 0);
-                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
-                            }
-
-                        }
-
-                        // hide ad
-                        if (windowClass.ToString().Equals("EVA_Window") )
-                        {
-                            GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
-
-                            if(GetParent(childHwnd) == hwnd|| windowParentCaption.ToString().StartsWith("LockModeView")) { 
-                                ShowWindow(childHwnd, 0);
-                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
+                                isKakaotalkRunning = false;
                             }
                         }
 
-                        // remove white area
-                        if (windowCaption.ToString().StartsWith("OnlineMainView") && GetParent(childHwnd) == hwnd)
+                        // get rect of kakaotalk
+                        RECT rectKakaoTalk = new RECT();
+                        GetWindowRect(hwnd, out rectKakaoTalk);
+                        // iterate all child windows of kakaotalk
+                        foreach (var childHwnd in childHwnds)
                         {
-                            var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
-                            var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top) - 38; // 38; there might be dragon. don't touch it.
-                            UpdateWindow(hwnd);
-                            SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
-                        }
+                            GetClassName(childHwnd, windowClass, windowClass.Capacity);
+                            GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
 
-                        if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == hwnd){
-                            var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
-                            var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top); // 38; there might be dragon. don't touch it.
-                            UpdateWindow(hwnd);
-                            SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
+                            // close popup ad
+                            if (windowClass.ToString().Equals("EVA_Window_Dblclk"))
+                            {
+                                if (windowCaption.ToString() == String.Empty)
+                                {
+                                    SendMessage(childHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                                }
+
+                            }
+
+                            // hide ad
+                            if (windowClass.ToString().Equals("EVA_Window") )
+                            {
+                                GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
+
+                                if(GetParent(childHwnd) == hwnd|| windowParentCaption.ToString().StartsWith("LockModeView")) { 
+                                    ShowWindow(childHwnd, 0);
+                                    SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
+                                }
+                            }
+
+                            // remove white area
+                            if (windowCaption.ToString().StartsWith("OnlineMainView") && GetParent(childHwnd) == hwnd)
+                            {
+                                var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
+                                var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top) - 38; // 38; there might be dragon. don't touch it.
+                                UpdateWindow(hwnd);
+                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
+                            }
+
+                            if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == hwnd){
+                                var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
+                                var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top); // 38; there might be dragon. don't touch it.
+                                UpdateWindow(hwnd);
+                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
+                            }
                         }
+                        Thread.Sleep(UPDATE_RATE);
                     }
                     Thread.Sleep(UPDATE_RATE);
                 }
-                Thread.Sleep(UPDATE_RATE);
             }
-        }
     }
 }
