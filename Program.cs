@@ -99,7 +99,7 @@ namespace KakaoTalkAdBlock
             var startupItem = new ToolStripMenuItem();
 
             // version
-            versionItem.Text = "v0.0.10-hotfix";
+            versionItem.Text = "v0.0.11";
             versionItem.Enabled = false;
 
             // run on startup menu
