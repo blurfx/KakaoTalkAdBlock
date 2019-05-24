@@ -95,7 +95,7 @@ namespace KakaoTalkAdBlock
             var startupItem = new ToolStripMenuItem();
 
             // version
-            versionItem.Text = "v0.0.8";
+            versionItem.Text = "v0.0.9";
             versionItem.Enabled = false;
 
             // run on startup menu
