@@ -55,14 +55,14 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="KakaoTalkAdBlock.exe" size="351232">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="KakaoTalkAdBlock.exe" size="350720">
       <assemblyIdentity name="KakaoTalkAdBlock" version="1.0.0.0" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>c/zAu67m/GmColnRGGdMwwfSBx8+SGOgVOmMuqhrxDE=</dsig:DigestValue>
+        <dsig:DigestValue>s0+3KmBqQeJmOYwxWCrKV6xQK8PIlf3ZpDJV/BA/NVo=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
