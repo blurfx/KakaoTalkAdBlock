@@ -25,6 +25,9 @@ namespace KakaoTalkAdBlock
         static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
 
         [DllImport("user32.dll")]
+        static extern IntPtr FindWindowA(string lpClassName, string lpWindowName);
+
+        [DllImport("user32.dll")]
         static extern IntPtr GetParent(IntPtr hWnd);
 
         [DllImport("user32.dll", EntryPoint = "SetWindowPos", SetLastError = false)]
@@ -73,8 +76,9 @@ namespace KakaoTalkAdBlock
 
         static string APP_NAME = "KakaoTalkAdBlock";
 
-        
+
         static IntPtr hwnd = IntPtr.Zero;
+        static IntPtr popUpHwnd = IntPtr.Zero;
         static Container container = new Container();
 
         static Thread watcherThread = new Thread(new ThreadStart(watchProcess));
@@ -154,110 +158,111 @@ namespace KakaoTalkAdBlock
         }
 
         static void watchProcess()
+        {
+            while (true)
             {
-                while (true)
+                while (!isKakaotalkRunning)
                 {
-                    while (!isKakaotalkRunning)
+                    System.Diagnostics.Debug.WriteLine("watching");
+                    hwnd = IntPtr.Zero;
+
+                    // find kakaotalk window
+                    foreach (string titleCandidate in KAKAOTALK_TITLE_STRING)
                     {
-                        System.Diagnostics.Debug.WriteLine("watching");
-                        hwnd = IntPtr.Zero;
+                        hwnd = FindWindow(null, titleCandidate);
+                        if (hwnd != IntPtr.Zero) break;
+                    }
 
-                        // find kakaotalk window
-                        foreach (string titleCandidate in KAKAOTALK_TITLE_STRING)
-                        {
-                            hwnd = FindWindow(null, titleCandidate);
-                            if (hwnd != IntPtr.Zero) break;
-                        }
-
-                        if (hwnd != IntPtr.Zero)
-                        {
-                            isKakaotalkRunning = true;
-                        }
-                        Thread.Sleep(UPDATE_RATE);
+                    if (hwnd != IntPtr.Zero)
+                    {
+                        isKakaotalkRunning = true;
                     }
                     Thread.Sleep(UPDATE_RATE);
                 }
+                Thread.Sleep(UPDATE_RATE);
             }
+        }
 
         static void removeAd()
+        {
+
+            var childHwnds = new List<IntPtr>();
+            var windowClass = new StringBuilder(256);
+            var windowCaption = new StringBuilder(256);
+            var windowParentCaption = new StringBuilder(256);
+
+            while (true)
             {
-            
-                var childHwnds = new List<IntPtr>();
-                var windowClass = new StringBuilder(256);
-                var windowCaption = new StringBuilder(256);
-                var windowParentCaption = new StringBuilder(256);
-
-                while (true)
+                while (isKakaotalkRunning)
                 {
-                    while (isKakaotalkRunning)
+                    childHwnds.Clear();
+                    var gcHandle = GCHandle.Alloc(childHwnds);
+
+                    // get handles from child windows
+                    try
                     {
-                        childHwnds.Clear();
-                        var gcHandle = GCHandle.Alloc(childHwnds);
-
-                        // get handles from child windows
-                        try
+                        EnumChildWindows(hwnd, new EnumWindowProcess(EnumWindow), GCHandle.ToIntPtr(gcHandle));
+                    }
+                    finally
+                    {
+                        if (gcHandle.IsAllocated) gcHandle.Free();
+                        if (childHwnds.Count == 0)
                         {
-                            EnumChildWindows(hwnd, new EnumWindowProcess(EnumWindow), GCHandle.ToIntPtr(gcHandle));
+                            isKakaotalkRunning = false;
                         }
-                        finally
+                    }
+
+                    // get rect of kakaotalk
+                    RECT rectKakaoTalk = new RECT();
+                    GetWindowRect(hwnd, out rectKakaoTalk);
+
+                    // iterate all child windows of kakaotalk
+                    foreach (var childHwnd in childHwnds)
+                    {
+                        GetClassName(childHwnd, windowClass, windowClass.Capacity);
+                        GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
+
+                        // hide ad
+                        if (windowClass.ToString().Equals("EVA_Window"))
                         {
-                            if (gcHandle.IsAllocated) gcHandle.Free();
-                            if(childHwnds.Count == 0)
+                            GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
+
+                            if (GetParent(childHwnd) == hwnd || windowParentCaption.ToString().StartsWith("LockModeView"))
                             {
-                                isKakaotalkRunning = false;
-                            }
-                        }
-
-                        // get rect of kakaotalk
-                        RECT rectKakaoTalk = new RECT();
-                        GetWindowRect(hwnd, out rectKakaoTalk);
-                        // iterate all child windows of kakaotalk
-                        foreach (var childHwnd in childHwnds)
-                        {
-                            GetClassName(childHwnd, windowClass, windowClass.Capacity);
-                            GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
-
-                            // close popup ad
-                            if (windowClass.ToString().Equals("EVA_Window_Dblclk"))
-                            {
-                                if (windowCaption.ToString() == String.Empty)
-                                {
-                                    SendMessage(childHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-                                }
-
-                            }
-
-                            // hide ad
-                            if (windowClass.ToString().Equals("EVA_Window") )
-                            {
-                                GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
-
-                                if(GetParent(childHwnd) == hwnd|| windowParentCaption.ToString().StartsWith("LockModeView")) { 
-                                    ShowWindow(childHwnd, 0);
-                                    SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
-                                }
-                            }
-
-                            // remove white area
-                            if (windowCaption.ToString().StartsWith("OnlineMainView") && GetParent(childHwnd) == hwnd)
-                            {
-                                var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
-                                var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top) - 38; // 38; there might be dragon. don't touch it.
-                                UpdateWindow(hwnd);
-                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
-                            }
-
-                            if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == hwnd){
-                                var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
-                                var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top); // 38; there might be dragon. don't touch it.
-                                UpdateWindow(hwnd);
-                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
+                                ShowWindow(childHwnd, 0);
+                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
                             }
                         }
-                        Thread.Sleep(UPDATE_RATE);
+
+                        // remove white area
+                        if (windowCaption.ToString().StartsWith("OnlineMainView") && GetParent(childHwnd) == hwnd)
+                        {
+                            var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
+                            var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top) - 38; // 38; there might be dragon. don't touch it.
+                            UpdateWindow(hwnd);
+                            SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
+                        }
+
+                        if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == hwnd)
+                        {
+                            var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
+                            var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top); // 38; there might be dragon. don't touch it.
+                            UpdateWindow(hwnd);
+                            SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
+                        }
+                    }
+
+                    // close popup ad
+                    popUpHwnd = FindWindowA("EVA_Window_Dblclk", "");
+                    if (popUpHwnd != IntPtr.Zero)
+                    {
+                        SendMessage(popUpHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+
                     }
                     Thread.Sleep(UPDATE_RATE);
                 }
+                Thread.Sleep(UPDATE_RATE);
             }
+        }
     }
 }
