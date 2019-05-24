@@ -85,6 +85,7 @@ namespace KakaoTalkAdBlock
         static Thread runnerThread = new Thread(new ThreadStart(removeAd));
 
         static bool isKakaotalkRunning = false;
+        static bool hasRemovedPopupAd = false;
 
         const int UPDATE_RATE = 100;
 
@@ -252,12 +253,15 @@ namespace KakaoTalkAdBlock
                         }
                     }
 
-                    // close popup ad
-                    popUpHwnd = FindWindowA("EVA_Window_Dblclk", "");
-                    if (popUpHwnd != IntPtr.Zero)
+                    if (!hasRemovedPopupAd)
                     {
-                        SendMessage(popUpHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-
+                        // close popup ad
+                        popUpHwnd = FindWindowA("EVA_Window_Dblclk", "");
+                        if (popUpHwnd != IntPtr.Zero)
+                        {
+                            SendMessage(popUpHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                            hasRemovedPopupAd = true;
+                        }
                     }
                     Thread.Sleep(UPDATE_RATE);
                 }
