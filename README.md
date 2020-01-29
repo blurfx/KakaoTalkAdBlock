@@ -15,7 +15,7 @@ Removes ads from KakaoTalk PC client.
 ### When uninstallable on Windows 10 due to security issues
 
 - Run Registry Editor by typing regedit in the run menu.
-- Move to "\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\.NETFramework\Security\TrustManager\PromptingLevel"
+- Move to "\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\\\.NETFramework\Security\TrustManager\PromptingLevel"
 - Change "Internet, Localintranet, MyComputer" to Enabled
 
 ## Update History
