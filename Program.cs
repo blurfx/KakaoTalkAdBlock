@@ -22,9 +22,6 @@ namespace KakaoTalkAdBlock
         static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
         [DllImport("user32.dll")]
-        static extern IntPtr FindWindowA(string lpClassName, string lpWindowName);
-
-        [DllImport("user32.dll")]
         static extern IntPtr FindWindowEx(IntPtr hwndParent, IntPtr ihwndChildAfter, string lpszClass, string lpszWindow);
 
         [DllImport("user32.dll")]
@@ -75,7 +72,6 @@ namespace KakaoTalkAdBlock
         static string[] KAKAOTALK_TITLE_STRING = { "카카오톡", "Kakaotalk", "カカオトーク" };
 
         static string APP_NAME = "KakaoTalkAdBlock";
-
 
         static volatile List<IntPtr> hwnd = new List<IntPtr>();
         static IntPtr popUpHwnd = IntPtr.Zero;
