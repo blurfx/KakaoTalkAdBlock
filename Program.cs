@@ -264,25 +264,21 @@ namespace KakaoTalkAdBlock
                         }
                     }
 
-                    if (!hasRemovedPopupAd)
+                    // close popup ad
+                    popUpHwnd = IntPtr.Zero;
+
+                    while ((popUpHwnd = FindWindowEx(IntPtr.Zero, popUpHwnd, "EVA_Window_Dblclk", "")) != IntPtr.Zero)
                     {
-                        // close popup ad
-                        popUpHwnd = IntPtr.Zero;
+                        // get rect of popup ad
+                        RECT rectPopup = new RECT();
+                        GetWindowRect(popUpHwnd, out rectPopup);
 
-                        while ((popUpHwnd = FindWindowEx(IntPtr.Zero, popUpHwnd, "EVA_Window_Dblclk", "")) != IntPtr.Zero)
+                        var width = rectPopup.Right - rectPopup.Left;
+                        var height = rectPopup.Bottom - rectPopup.Top;
+
+                        if (width.Equals(300) && height.Equals(150))
                         {
-                            // get rect of popup ad
-                            RECT rectPopup = new RECT();
-                            GetWindowRect(popUpHwnd, out rectPopup);
-
-                            var width = rectPopup.Right - rectPopup.Left;
-                            var height = rectPopup.Bottom - rectPopup.Top;
-
-                            if (width.Equals(300) && height.Equals(150))
-                            {
-                                SendMessage(popUpHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-                                hasRemovedPopupAd = true;
-                            }
+                            SendMessage(popUpHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
                         }
                     }
                 }
