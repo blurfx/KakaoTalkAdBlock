@@ -267,8 +267,18 @@ namespace KakaoTalkAdBlock
                     // close popup ad
                     popUpHwnd = IntPtr.Zero;
 
-                    while ((popUpHwnd = FindWindowEx(IntPtr.Zero, popUpHwnd, "EVA_Window_Dblclk", "")) != IntPtr.Zero)
+                    while ((popUpHwnd = FindWindowEx(IntPtr.Zero, popUpHwnd, null, "")) != IntPtr.Zero)
                     {
+                        // popup ad does not have any parent
+                        if (GetParent(popUpHwnd) != IntPtr.Zero) continue;
+
+                        // get class name of blank title
+                        var classNameSb = new StringBuilder(256);
+                        GetClassName(popUpHwnd, classNameSb, classNameSb.Capacity);
+                        string className = classNameSb.ToString();
+
+                        if (!className.Contains("EVA_Window_Dblclk")) continue;
+
                         // get rect of popup ad
                         RECT rectPopup = new RECT();
                         GetWindowRect(popUpHwnd, out rectPopup);
