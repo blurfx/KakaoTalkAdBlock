@@ -95,7 +95,7 @@ namespace KakaoTalkAdBlock
             var startupItem = new ToolStripMenuItem();
 
             // version
-            versionItem.Text = "v1.0.0";
+            versionItem.Text = "v1.0.1";
             versionItem.Enabled = false;
 
             // if startup is enabled, set startup menu checked
@@ -224,7 +224,7 @@ namespace KakaoTalkAdBlock
                             GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
 
                             // hide adv
-                            if (windowClass.ToString().Equals("BannerAdWnd"))
+                            if (windowClass.ToString().Equals("BannerAdWnd") || windowClass.ToString().Equals("EVA_Window"))
                             {
                                 GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
 
