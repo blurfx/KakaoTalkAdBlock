@@ -69,7 +69,6 @@ namespace KakaoTalkAdBlock
         #endregion
 
         #region Global Variables
-        static string[] KAKAOTALK_TITLE_STRING = { "카카오톡", "Kakaotalk", "カカオトーク" };
 
         static string APP_NAME = "KakaoTalkAdBlock";
 
@@ -166,27 +165,38 @@ namespace KakaoTalkAdBlock
             mutex.ReleaseMutex();
         }
 
+        static bool hasEVAWindow(IntPtr parentHwnd)
+        {
+            IntPtr childHwnd = IntPtr.Zero;
+            var className = new StringBuilder(256); // Class name has length limit by 256 by WNDCLASSA structure
+            while ((childHwnd = FindWindowEx(parentHwnd, childHwnd, null, null)) != IntPtr.Zero)
+            {
+                GetClassName(childHwnd, className, className.Capacity);
+                if (className.ToString().Contains("EVA_Window")) return true;
+            }
+            return false;
+        }
+
         static void watchProcess()
         {
             while (true)
             {
                 System.Diagnostics.Debug.WriteLine("watching");
+                List<IntPtr> allHWnd = new List<IntPtr>();
+                IntPtr tmpHwnd;
 
                 // hwnd must not be changed while removing ad
                 lock (hwndLock)
                 {
                     hwnd.Clear();
+                    allHWnd.Clear();
+                    tmpHwnd = IntPtr.Zero;
 
-                    // find kakaotalk window
-                    foreach (string titleCandidate in KAKAOTALK_TITLE_STRING)
+                    while ((tmpHwnd = FindWindowEx(IntPtr.Zero, tmpHwnd, null, null)) != IntPtr.Zero)
                     {
-                        IntPtr tmpHwnd = IntPtr.Zero;
-
-                        while ((tmpHwnd = FindWindowEx(IntPtr.Zero, tmpHwnd, null, titleCandidate)) != IntPtr.Zero)
-                        {
-                            hwnd.Add(tmpHwnd);
-                        }
+                        allHWnd.Add(tmpHwnd);
                     }
+                    hwnd.AddRange(allHWnd.FindAll(hasEVAWindow));
                 }
 
                 Thread.Sleep(UPDATE_RATE);
