@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -80,7 +81,6 @@ namespace KakaoTalkAdBlock
         static Thread runnerThread = new Thread(new ThreadStart(removeAd));
 
         static readonly object hwndLock = new object();
-        static bool hasRemovedPopupAd = false;
 
         const int UPDATE_RATE = 100;
 
@@ -95,7 +95,7 @@ namespace KakaoTalkAdBlock
             var startupItem = new ToolStripMenuItem();
 
             // version
-            versionItem.Text = "v0.0.12";
+            versionItem.Text = "v1.0.0";
             versionItem.Enabled = false;
 
             // if startup is enabled, set startup menu checked
@@ -165,38 +165,20 @@ namespace KakaoTalkAdBlock
             mutex.ReleaseMutex();
         }
 
-        static bool hasEVAWindow(IntPtr parentHwnd)
-        {
-            IntPtr childHwnd = IntPtr.Zero;
-            var className = new StringBuilder(256); // Class name has length limit by 256 by WNDCLASSA structure
-            while ((childHwnd = FindWindowEx(parentHwnd, childHwnd, null, null)) != IntPtr.Zero)
-            {
-                GetClassName(childHwnd, className, className.Capacity);
-                if (className.ToString().Contains("EVA_Window")) return true;
-            }
-            return false;
-        }
-
         static void watchProcess()
         {
             while (true)
             {
-                System.Diagnostics.Debug.WriteLine("watching");
-                List<IntPtr> allHWnd = new List<IntPtr>();
-                IntPtr tmpHwnd;
-
                 // hwnd must not be changed while removing ad
                 lock (hwndLock)
                 {
                     hwnd.Clear();
-                    allHWnd.Clear();
-                    tmpHwnd = IntPtr.Zero;
 
-                    while ((tmpHwnd = FindWindowEx(IntPtr.Zero, tmpHwnd, null, null)) != IntPtr.Zero)
+                    var processes = Process.GetProcessesByName("kakaotalk");
+                    foreach (Process proc in processes)
                     {
-                        allHWnd.Add(tmpHwnd);
+                        hwnd.Add(proc.MainWindowHandle);
                     }
-                    hwnd.AddRange(allHWnd.FindAll(hasEVAWindow));
                 }
 
                 Thread.Sleep(UPDATE_RATE);
@@ -213,8 +195,6 @@ namespace KakaoTalkAdBlock
 
             while (true)
             {
-                System.Diagnostics.Debug.WriteLine("removing");
-
                 // hwnd must not be changed while removing ad
                 lock (hwndLock)
                 {
@@ -243,8 +223,8 @@ namespace KakaoTalkAdBlock
                             GetClassName(childHwnd, windowClass, windowClass.Capacity);
                             GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
 
-                            // hide ad
-                            if (windowClass.ToString().Equals("EVA_Window"))
+                            // hide adv
+                            if (windowClass.ToString().Equals("BannerAdWnd"))
                             {
                                 GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
 
