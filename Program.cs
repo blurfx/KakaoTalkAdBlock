@@ -200,6 +200,12 @@ namespace KakaoTalkAdBlock
                 {
                     foreach (IntPtr wnd in hwnd)
                     {
+
+                        if (wnd == IntPtr.Zero)
+                        {
+                            continue;
+                        }
+
                         childHwnds.Clear();
                         var gcHandle = GCHandle.Alloc(childHwnds);
 
