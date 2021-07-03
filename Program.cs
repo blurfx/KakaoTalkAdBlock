@@ -273,7 +273,7 @@ namespace KakaoTalkAdBlock
                         GetClassName(popUpHwnd, classNameSb, classNameSb.Capacity);
                         string className = classNameSb.ToString();
 
-                        if (!className.Contains("EVA_Window_Dblclk")) continue;
+                        if (!className.Contains("RichPopWnd")) continue;
 
                         // get rect of popup ad
                         RECT rectPopup = new RECT();
