@@ -83,6 +83,10 @@ namespace KakaoTalkAdBlock
 
         const int UPDATE_RATE = 100;
 
+        const int LAYOUT_SHADOW_PADDING = 2;
+
+        const int MAINVIEW_PADDING = 31;
+
         static uint WM_CLOSE = 0x10;
         #endregion
 
@@ -283,8 +287,8 @@ namespace KakaoTalkAdBlock
         {
             if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == wnd)
             {
-                var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
-                var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top); // 38; there might be dragon. don't touch it.
+                var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
+                var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top;
                 UpdateWindow(wnd);
                 SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
             }
@@ -294,8 +298,8 @@ namespace KakaoTalkAdBlock
         {
             if (windowCaption.ToString().StartsWith("OnlineMainView") && GetParent(childHwnd) == wnd)
             {
-                var width = rectKakaoTalk.Right - rectKakaoTalk.Left - 2;
-                var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top) - 31; // 31; there might be dragon. don't touch it.
+                var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
+                var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top - MAINVIEW_PADDING;
                 UpdateWindow(wnd);
                 SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
             }
