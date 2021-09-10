@@ -289,7 +289,7 @@ namespace KakaoTalkAdBlock
             {
                 var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
                 var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top;
-                UpdateWindow(wnd);
+                UpdateWindow(childHwnd);
                 SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
             }
         }
@@ -300,7 +300,12 @@ namespace KakaoTalkAdBlock
             {
                 var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
                 var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top - MAINVIEW_PADDING;
-                UpdateWindow(wnd);
+                Debug.WriteLine(height);
+                if (height < 1)
+                {
+                    return;
+                }
+                UpdateWindow(childHwnd);
                 SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
             }
         }
