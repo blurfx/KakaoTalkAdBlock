@@ -300,7 +300,6 @@ namespace KakaoTalkAdBlock
             {
                 var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
                 var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top - MAINVIEW_PADDING;
-                Debug.WriteLine(height);
                 if (height < 1)
                 {
                     return;
