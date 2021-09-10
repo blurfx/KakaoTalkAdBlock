@@ -74,7 +74,6 @@ namespace KakaoTalkAdBlock
         static string APP_NAME = "KakaoTalkAdBlock";
 
         static volatile List<IntPtr> hwnd = new List<IntPtr>();
-        static IntPtr popUpHwnd = IntPtr.Zero;
         static Container container = new Container();
 
         static Thread watcherThread = new Thread(new ThreadStart(watchProcess));
@@ -83,6 +82,10 @@ namespace KakaoTalkAdBlock
         static readonly object hwndLock = new object();
 
         const int UPDATE_RATE = 100;
+
+        const int LAYOUT_SHADOW_PADDING = 2;
+
+        const int MAINVIEW_PADDING = 31;
 
         static uint WM_CLOSE = 0x10;
         #endregion
@@ -140,10 +143,9 @@ namespace KakaoTalkAdBlock
             return contextMenu;
         }
 
-        static void Main(string[] args)
+        static void Main()
         {
-            bool isNotDuplicated = true;
-            var mutex = new Mutex(true, APP_NAME, out isNotDuplicated);
+            var mutex = new Mutex(true, APP_NAME, out bool isNotDuplicated);
 
             if (!isNotDuplicated)
             {
@@ -152,7 +154,7 @@ namespace KakaoTalkAdBlock
             }
 
             // build trayicon
-            NotifyIcon tray = new NotifyIcon(container)
+            new NotifyIcon(container)
             {
                 Visible = true,
                 Icon = Properties.Resources.icon,
@@ -229,66 +231,81 @@ namespace KakaoTalkAdBlock
                             GetClassName(childHwnd, windowClass, windowClass.Capacity);
                             GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
 
-                            // hide adv
-                            if (windowClass.ToString().Equals("BannerAdWnd") || windowClass.ToString().Equals("EVA_Window"))
-                            {
-                                GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
-
-                                if (GetParent(childHwnd) == wnd || windowParentCaption.ToString().StartsWith("LockModeView"))
-                                {
-                                    ShowWindow(childHwnd, 0);
-                                    SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
-                                }
-                            }
-
-                            // remove white area
-                            if (windowCaption.ToString().StartsWith("OnlineMainView") && GetParent(childHwnd) == wnd)
-                            {
-                                var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
-                                var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top) - 31; // 31; there might be dragon. don't touch it.
-                                UpdateWindow(wnd);
-                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
-                            }
-
-                            if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == wnd)
-                            {
-                                var width = rectKakaoTalk.Right - rectKakaoTalk.Left;
-                                var height = (rectKakaoTalk.Bottom - rectKakaoTalk.Top); // 38; there might be dragon. don't touch it.
-                                UpdateWindow(wnd);
-                                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
-                            }
+                            HideMainWindowAd(windowClass, windowParentCaption, wnd, childHwnd);
+                            HideMainViewAdArea(windowCaption, wnd, rectKakaoTalk, childHwnd);
+                            HideLockScreenAdArea(windowCaption, wnd, rectKakaoTalk, childHwnd);
                         }
                     }
-
-                    // close popup ad
-                    popUpHwnd = IntPtr.Zero;
-
-                    while ((popUpHwnd = FindWindowEx(IntPtr.Zero, popUpHwnd, null, "")) != IntPtr.Zero)
-                    {
-                        // popup ad does not have any parent
-                        if (GetParent(popUpHwnd) != IntPtr.Zero) continue;
-
-                        // get class name of blank title
-                        var classNameSb = new StringBuilder(256);
-                        GetClassName(popUpHwnd, classNameSb, classNameSb.Capacity);
-                        string className = classNameSb.ToString();
-
-                        if (!className.Contains("RichPopWnd")) continue;
-
-                        // get rect of popup ad
-                        RECT rectPopup = new RECT();
-                        GetWindowRect(popUpHwnd, out rectPopup);
-
-                        var width = rectPopup.Right - rectPopup.Left;
-                        var height = rectPopup.Bottom - rectPopup.Top;
-
-                        if (width.Equals(300) && height.Equals(150))
-                        {
-                            SendMessage(popUpHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
-                        }
-                    }
+                    HidePopupAd();
                 }
                 Thread.Sleep(UPDATE_RATE);
+            }
+        }
+
+        private static void HidePopupAd()
+        {
+            var popUpHwnd = IntPtr.Zero;
+            while ((popUpHwnd = FindWindowEx(IntPtr.Zero, popUpHwnd, null, "")) != IntPtr.Zero)
+            {
+                // popup ad does not have any parent
+                if (GetParent(popUpHwnd) != IntPtr.Zero) continue;
+
+                // get class name of blank title
+                var classNameSb = new StringBuilder(256);
+                GetClassName(popUpHwnd, classNameSb, classNameSb.Capacity);
+                string className = classNameSb.ToString();
+
+                if (!className.Contains("RichPopWnd")) continue;
+
+                // get rect of popup ad
+                GetWindowRect(popUpHwnd, out RECT rectPopup);
+                var width = rectPopup.Right - rectPopup.Left;
+                var height = rectPopup.Bottom - rectPopup.Top;
+
+                if (width.Equals(300) && height.Equals(150))
+                {
+                    SendMessage(popUpHwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                }
+            }
+        }
+
+        private static void HideMainWindowAd(StringBuilder windowClass, StringBuilder windowParentCaption, IntPtr wnd, IntPtr childHwnd)
+        {
+            if (windowClass.ToString().Equals("BannerAdWnd") || windowClass.ToString().Equals("EVA_Window"))
+            {
+                GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
+
+                if (GetParent(childHwnd) == wnd || windowParentCaption.ToString().StartsWith("LockModeView"))
+                {
+                    ShowWindow(childHwnd, 0);
+                    SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
+                }
+            }
+        }
+
+        private static void HideLockScreenAdArea(StringBuilder windowCaption, IntPtr wnd, RECT rectKakaoTalk, IntPtr childHwnd)
+        {
+            if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == wnd)
+            {
+                var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
+                var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top;
+                UpdateWindow(childHwnd);
+                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
+            }
+        }
+
+        private static void HideMainViewAdArea(StringBuilder windowCaption, IntPtr wnd, RECT rectKakaoTalk, IntPtr childHwnd)
+        {
+            if (windowCaption.ToString().StartsWith("OnlineMainView") && GetParent(childHwnd) == wnd)
+            {
+                var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
+                var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top - MAINVIEW_PADDING;
+                if (height < 1)
+                {
+                    return;
+                }
+                UpdateWindow(childHwnd);
+                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, width, height, SetWindowPosFlags.SWP_NOMOVE);
             }
         }
     }
