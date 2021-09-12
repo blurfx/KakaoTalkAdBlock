@@ -17,6 +17,10 @@ namespace KakaoTalkAdBlock
         static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
 
         [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool EnumThreadWindows(uint dwThreadId, EnumThreadDelegate lpfn, IntPtr lParam);
+
+        [DllImport("user32.dll")]
         static extern bool EnumChildWindows(IntPtr WindowHandle, EnumWindowProcess Callback, IntPtr lParam);
 
         [DllImport("user32.dll")]
@@ -42,6 +46,7 @@ namespace KakaoTalkAdBlock
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = false)]
         static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
+        public delegate bool EnumThreadDelegate (IntPtr hwnd, IntPtr lParam);
 
         static class SetWindowPosFlags
         {
@@ -98,7 +103,7 @@ namespace KakaoTalkAdBlock
             var startupItem = new ToolStripMenuItem();
 
             // version
-            versionItem.Text = "v1.1.0";
+            versionItem.Text = "v1.3.0";
             versionItem.Enabled = false;
 
             // if startup is enabled, set startup menu checked
@@ -179,7 +184,14 @@ namespace KakaoTalkAdBlock
                     var processes = Process.GetProcessesByName("kakaotalk");
                     foreach (Process proc in processes)
                     {
-                        hwnd.Add(proc.MainWindowHandle);
+                        foreach(ProcessThread thread in proc.Threads)
+                        {
+                            EnumThreadWindows(Convert.ToUInt32(thread.Id), (twnd, _) =>
+                            {
+                                hwnd.Add(twnd);
+                                return true;
+                            }, IntPtr.Zero);
+                        }
                     }
                 }
 
