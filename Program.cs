@@ -103,7 +103,7 @@ namespace KakaoTalkAdBlock
             var startupItem = new ToolStripMenuItem();
 
             // version
-            versionItem.Text = "v1.3.0";
+            versionItem.Text = "v1.3.1";
             versionItem.Enabled = false;
 
             // if startup is enabled, set startup menu checked
@@ -287,7 +287,7 @@ namespace KakaoTalkAdBlock
             {
                 GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
 
-                if (GetParent(childHwnd) == wnd || windowParentCaption.ToString().StartsWith("LockModeView"))
+                if (windowParentCaption.ToString().StartsWith("LockModeView"))
                 {
                     ShowWindow(childHwnd, 0);
                     SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
