@@ -243,9 +243,9 @@ namespace KakaoTalkAdBlock
                             GetClassName(childHwnd, windowClass, windowClass.Capacity);
                             GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
 
-                            HideMainWindowAd(windowClass, windowParentCaption, wnd, childHwnd);
-                            HideMainViewAdArea(windowCaption, wnd, rectKakaoTalk, childHwnd);
-                            HideLockScreenAdArea(windowCaption, wnd, rectKakaoTalk, childHwnd);
+                            HideMainWindowAd(windowClass, windowParentCaption, childHwnd);
+                            HideMainViewAdArea(windowCaption, rectKakaoTalk, childHwnd);
+                            HideLockScreenAdArea(windowCaption, rectKakaoTalk, childHwnd);
                         }
                     }
                     HidePopupAd();
@@ -281,7 +281,7 @@ namespace KakaoTalkAdBlock
             }
         }
 
-        private static void HideMainWindowAd(StringBuilder windowClass, StringBuilder windowParentCaption, IntPtr wnd, IntPtr childHwnd)
+        private static void HideMainWindowAd(StringBuilder windowClass, StringBuilder windowParentCaption, IntPtr childHwnd)
         {
             if (windowClass.ToString().Equals("BannerAdWnd"))
             {
@@ -291,9 +291,9 @@ namespace KakaoTalkAdBlock
             }
         }
 
-        private static void HideLockScreenAdArea(StringBuilder windowCaption, IntPtr wnd, RECT rectKakaoTalk, IntPtr childHwnd)
+        private static void HideLockScreenAdArea(StringBuilder windowCaption, RECT rectKakaoTalk, IntPtr childHwnd)
         {
-            if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == wnd)
+            if (windowCaption.ToString().StartsWith("LockModeView"))
             {
                 var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
                 var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top;
@@ -302,9 +302,9 @@ namespace KakaoTalkAdBlock
             }
         }
 
-        private static void HideMainViewAdArea(StringBuilder windowCaption, IntPtr wnd, RECT rectKakaoTalk, IntPtr childHwnd)
+        private static void HideMainViewAdArea(StringBuilder windowCaption,RECT rectKakaoTalk, IntPtr childHwnd)
         {
-            if (windowCaption.ToString().StartsWith("OnlineMainView") && GetParent(childHwnd) == wnd)
+            if (windowCaption.ToString().StartsWith("OnlineMainView"))
             {
                 var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
                 var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top - MAINVIEW_PADDING;
