@@ -283,15 +283,11 @@ namespace KakaoTalkAdBlock
 
         private static void HideMainWindowAd(StringBuilder windowClass, StringBuilder windowParentCaption, IntPtr wnd, IntPtr childHwnd)
         {
-            if (windowClass.ToString().Equals("BannerAdWnd") || windowClass.ToString().Equals("EVA_Window"))
+            if (windowClass.ToString().Equals("BannerAdWnd"))
             {
                 GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
-
-                if (windowParentCaption.ToString().StartsWith("LockModeView"))
-                {
-                    ShowWindow(childHwnd, 0);
-                    SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
-                }
+                ShowWindow(childHwnd, 0);
+                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
             }
         }
 
