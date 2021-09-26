@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Deployment.Application;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -101,9 +102,16 @@ namespace KakaoTalkAdBlock
             var versionItem = new ToolStripMenuItem();
             var exitItem = new ToolStripMenuItem();
             var startupItem = new ToolStripMenuItem();
-
             // version
-            versionItem.Text = "v1.3.1";
+            if (ApplicationDeployment.IsNetworkDeployed)
+            {
+                var assemblyVersion = ApplicationDeployment.CurrentDeployment.CurrentVersion;
+                versionItem.Text = $"v{assemblyVersion.ToString(3)}";
+            }
+            else
+            {
+                versionItem.Text = "development build";
+            }
             versionItem.Enabled = false;
 
             // if startup is enabled, set startup menu checked
@@ -243,9 +251,9 @@ namespace KakaoTalkAdBlock
                             GetClassName(childHwnd, windowClass, windowClass.Capacity);
                             GetWindowText(childHwnd, windowCaption, windowCaption.Capacity);
 
-                            HideMainWindowAd(windowClass, windowParentCaption, wnd, childHwnd);
-                            HideMainViewAdArea(windowCaption, wnd, rectKakaoTalk, childHwnd);
-                            HideLockScreenAdArea(windowCaption, wnd, rectKakaoTalk, childHwnd);
+                            HideMainWindowAd(windowClass, windowParentCaption, childHwnd);
+                            HideMainViewAdArea(windowCaption, rectKakaoTalk, childHwnd);
+                            HideLockScreenAdArea(windowCaption, rectKakaoTalk, childHwnd);
                         }
                     }
                     HidePopupAd();
@@ -281,23 +289,19 @@ namespace KakaoTalkAdBlock
             }
         }
 
-        private static void HideMainWindowAd(StringBuilder windowClass, StringBuilder windowParentCaption, IntPtr wnd, IntPtr childHwnd)
+        private static void HideMainWindowAd(StringBuilder windowClass, StringBuilder windowParentCaption, IntPtr childHwnd)
         {
-            if (windowClass.ToString().Equals("BannerAdWnd") || windowClass.ToString().Equals("EVA_Window"))
+            if (windowClass.ToString().Equals("BannerAdWnd"))
             {
                 GetWindowText(GetParent(childHwnd), windowParentCaption, windowParentCaption.Capacity);
-
-                if (windowParentCaption.ToString().StartsWith("LockModeView"))
-                {
-                    ShowWindow(childHwnd, 0);
-                    SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
-                }
+                ShowWindow(childHwnd, 0);
+                SetWindowPos(childHwnd, IntPtr.Zero, 0, 0, 0, 0, SetWindowPosFlags.SWP_NOMOVE);
             }
         }
 
-        private static void HideLockScreenAdArea(StringBuilder windowCaption, IntPtr wnd, RECT rectKakaoTalk, IntPtr childHwnd)
+        private static void HideLockScreenAdArea(StringBuilder windowCaption, RECT rectKakaoTalk, IntPtr childHwnd)
         {
-            if (windowCaption.ToString().StartsWith("LockModeView") && GetParent(childHwnd) == wnd)
+            if (windowCaption.ToString().StartsWith("LockModeView"))
             {
                 var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
                 var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top;
@@ -306,9 +310,9 @@ namespace KakaoTalkAdBlock
             }
         }
 
-        private static void HideMainViewAdArea(StringBuilder windowCaption, IntPtr wnd, RECT rectKakaoTalk, IntPtr childHwnd)
+        private static void HideMainViewAdArea(StringBuilder windowCaption,RECT rectKakaoTalk, IntPtr childHwnd)
         {
-            if (windowCaption.ToString().StartsWith("OnlineMainView") && GetParent(childHwnd) == wnd)
+            if (windowCaption.ToString().StartsWith("OnlineMainView"))
             {
                 var width = rectKakaoTalk.Right - rectKakaoTalk.Left - LAYOUT_SHADOW_PADDING;
                 var height = rectKakaoTalk.Bottom - rectKakaoTalk.Top - MAINVIEW_PADDING;
