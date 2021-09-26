@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Deployment.Application;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -101,9 +102,16 @@ namespace KakaoTalkAdBlock
             var versionItem = new ToolStripMenuItem();
             var exitItem = new ToolStripMenuItem();
             var startupItem = new ToolStripMenuItem();
-
             // version
-            versionItem.Text = "v1.3.1";
+            if (ApplicationDeployment.IsNetworkDeployed)
+            {
+                var assemblyVersion = ApplicationDeployment.CurrentDeployment.CurrentVersion;
+                versionItem.Text = $"v{assemblyVersion.ToString(3)}";
+            }
+            else
+            {
+                versionItem.Text = "development build";
+            }
             versionItem.Enabled = false;
 
             // if startup is enabled, set startup menu checked
