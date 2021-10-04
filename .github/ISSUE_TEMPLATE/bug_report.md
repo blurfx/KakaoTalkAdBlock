@@ -1,38 +1,21 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: 버그/오류 제보
+about: 버그/오류 제보
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**버그/오류에 대해 설명해주세요**
+<!-- 어떤 문제가 있는지 설명해주세요 -->
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**문제를 재현하는 방법을 설명해주세요**
+<!-- 문제 재현 방법을 설명해주시면 버그 픽스에 큰 도움이 됩니다 -->
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**스크린샷**
+<!-- 스크린샷을 같이 첨부해주세요 -->
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
-
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
- - Browser [e.g. chrome, safari]
- - Version [e.g. 22]
-
-**Smartphone (please complete the following information):**
- - Device: [e.g. iPhone6]
- - OS: [e.g. iOS8.1]
- - Browser [e.g. stock browser, safari]
- - Version [e.g. 22]
-
-**Additional context**
-Add any other context about the problem here.
+**카카오톡, 카카오톡 애드블럭 버전을 알려주세요**
+- 카카오톡: 
+- 카카오톡 애드블럭:
