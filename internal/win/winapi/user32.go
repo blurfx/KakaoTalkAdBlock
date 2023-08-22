@@ -1,4 +1,4 @@
-package win
+package winapi
 
 import (
 	"syscall"
@@ -14,25 +14,25 @@ type Rect struct {
 	Bottom int32
 }
 
-const (
-	SWP_NOMOVE = 0x0002
-	WM_CLOSE   = 0x10
-)
-
 var (
-	libuser32                = windows.NewLazySystemDLL("user32.dll")
-	getClassName             = libuser32.NewProc("GetClassNameW")
-	enumChildWindows         = libuser32.NewProc("EnumChildWindows")
-	enumWindows              = libuser32.NewProc("EnumWindows")
-	showWindow               = libuser32.NewProc("ShowWindow")
-	findWindowEx             = libuser32.NewProc("FindWindowExW")
-	getParent                = libuser32.NewProc("GetParent")
-	setWindowPos             = libuser32.NewProc("SetWindowPos")
-	getWindowText            = libuser32.NewProc("GetWindowTextW")
-	getWindowRect            = libuser32.NewProc("GetWindowRect")
-	updateWindow             = libuser32.NewProc("UpdateWindow")
-	sendMessage              = libuser32.NewProc("SendMessageW")
-	getWindowThreadProcessId = libuser32.NewProc("GetWindowThreadProcessId")
+	user32                   = windows.NewLazySystemDLL("user32.dll")
+	getClassName             = user32.NewProc("GetClassNameW")
+	enumChildWindows         = user32.NewProc("EnumChildWindows")
+	enumWindows              = user32.NewProc("EnumWindows")
+	showWindow               = user32.NewProc("ShowWindow")
+	findWindowEx             = user32.NewProc("FindWindowExW")
+	getParent                = user32.NewProc("GetParent")
+	setWindowPos             = user32.NewProc("SetWindowPos")
+	getWindowText            = user32.NewProc("GetWindowTextW")
+	getWindowRect            = user32.NewProc("GetWindowRect")
+	updateWindow             = user32.NewProc("UpdateWindow")
+	sendMessage              = user32.NewProc("SendMessageW")
+	getWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
+	loadIcon                 = user32.NewProc("LoadIconW")
+	postQuitMessage          = user32.NewProc("PostQuitMessage")
+	defWindowProc            = user32.NewProc("DefWindowProcW")
+	registerClassEx          = user32.NewProc("RegisterClassExW")
+	createWindowEx           = user32.NewProc("CreateWindowExW")
 )
 
 func cStr(str string) uintptr {
@@ -102,4 +102,68 @@ func SendMessage(hWd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 func GetWindowThreadProcessId(hWnd windows.HWND, dwProcessId *uint32) uint32 {
 	r, _, _ := getWindowThreadProcessId.Call(uintptr(hWnd), uintptr(unsafe.Pointer(dwProcessId)))
 	return uint32(r)
+}
+
+func PostQuitMessage(nExitCode int32) {
+	r, _, err := postQuitMessage.Call(uintptr(nExitCode))
+	if r == 0 {
+		panic(err)
+	}
+}
+
+func DefWindowProc(
+	hWnd uintptr,
+	Msg uint32,
+	wParam, lParam uintptr) uintptr {
+	r, _, _ := defWindowProc.Call(
+		hWnd,
+		uintptr(Msg),
+		wParam,
+		lParam)
+	return r
+}
+
+func RegisterClassEx(Arg1 *WindowClassEx) (uint16, error) {
+	r, _, err := registerClassEx.Call(uintptr(unsafe.Pointer(Arg1)))
+	if r == 0 {
+		return 0, err
+	}
+	return uint16(r), nil
+}
+
+func CreateWindowEx(
+	dwExStyle uint32,
+	lpClassName, lpWindowName *uint16,
+	dwStyle uint32,
+	X, Y, nWidth, nHeight int32,
+	hWndParent, hMenu, hInstance uintptr,
+	lpParam unsafe.Pointer) (uintptr, error) {
+	r, _, err := createWindowEx.Call(
+		uintptr(dwExStyle),
+		uintptr(unsafe.Pointer(lpClassName)),
+		uintptr(unsafe.Pointer(lpWindowName)),
+		uintptr(dwStyle),
+		uintptr(X),
+		uintptr(Y),
+		uintptr(nWidth),
+		uintptr(nHeight),
+		hWndParent,
+		hMenu,
+		hInstance,
+		uintptr(lpParam))
+	if r == 0 {
+		return 0, err
+	}
+	return r, nil
+}
+
+func LoadIcon(instance uintptr, iconName *uint16) (uintptr, error) {
+	ret, _, err := loadIcon.Call(
+		instance,
+		uintptr(unsafe.Pointer(iconName)),
+	)
+	if ret == 0 {
+		return 0, err
+	}
+	return ret, nil
 }

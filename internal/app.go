@@ -9,6 +9,7 @@ import (
 	"unsafe"
 
 	"kakaotalkadblock/internal/win"
+	"kakaotalkadblock/internal/win/winapi"
 
 	"golang.org/x/sys/windows"
 )
@@ -27,15 +28,15 @@ func uint8ToStr(arr []uint8) string {
 func watch() {
 	const executeable = "kakaotalk.exe"
 	var (
-		pe32      win.ProcessEntry32
+		pe32      winapi.ProcessEntry32
 		szExeFile string
 	)
 
-	snapshot := win.CreateToolhelp32Snapshot(win.TH32CS_SNAPPROCESS, 0)
+	snapshot := winapi.CreateToolhelp32Snapshot(winapi.Th32csSnapprocess, 0)
 	pe32.DwSize = uint32(unsafe.Sizeof(pe32))
 
 	var enumWindow = syscall.NewCallback(func(handle windows.HWND, processId uintptr) uintptr {
-		win.GetWindowThreadProcessId(handle, &pe32.Th32ProcessID)
+		winapi.GetWindowThreadProcessId(handle, &pe32.Th32ProcessID)
 
 		if processId == uintptr(pe32.Th32ProcessID) {
 			handles = append(handles, handle)
@@ -47,16 +48,16 @@ func watch() {
 		mutex.Lock()
 		handles = handles[:0]
 
-		if win.Process32First(uintptr(snapshot), &pe32) {
+		if winapi.Process32First(uintptr(snapshot), &pe32) {
 			for {
 				szExeFile = uint8ToStr(pe32.SzExeFile[:])
 
 				if strings.ToLower(szExeFile) == executeable {
-					win.EnumWindows(enumWindow, uintptr(pe32.Th32ProcessID))
+					winapi.EnumWindows(enumWindow, uintptr(pe32.Th32ProcessID))
 					break
 				}
 
-				if !win.Process32Next(uintptr(snapshot), &pe32) {
+				if !winapi.Process32Next(uintptr(snapshot), &pe32) {
 					break
 				}
 			}
@@ -81,13 +82,13 @@ func removeAd() {
 			}
 			childHandles = childHandles[:0]
 			var handle windows.HWND
-			win.EnumChildWindows(wnd, enumWindow, uintptr(unsafe.Pointer(&handle)))
+			winapi.EnumChildWindows(wnd, enumWindow, uintptr(unsafe.Pointer(&handle)))
 
-			rect := new(win.Rect)
-			win.GetWindowRect(wnd, rect)
+			rect := new(winapi.Rect)
+			winapi.GetWindowRect(wnd, rect)
 			for _, childHandle := range childHandles {
-				className := win.GetClassName(childHandle)
-				windowText := win.GetWindowText(childHandle)
+				className := winapi.GetClassName(childHandle)
+				windowText := winapi.GetWindowText(childHandle)
 				HideMainWindowAd(className, childHandle)
 				HideMainViewAdArea(windowText, rect, childHandle)
 				HideLockScreenAdArea(windowText, rect, childHandle)
@@ -100,8 +101,15 @@ func removeAd() {
 }
 
 func Run() {
+	var quit = make(chan struct{})
+	trayIcon := win.NewTrayIcon(&quit)
+	trayIcon.Show()
+	defer trayIcon.Hide()
 	go watch()
 	go removeAd()
 
-	select {}
+	select {
+	case <-quit:
+		return
+	}
 }
