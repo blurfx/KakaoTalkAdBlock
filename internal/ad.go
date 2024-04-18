@@ -38,9 +38,15 @@ func HidePopupAd() {
 }
 
 func HideMainWindowAd(windowClass string, handle windows.HWND) {
+	// @deprecated
 	if windowClass == "BannerAdWnd" {
 		winapi.ShowWindow(handle, 0)
 		winapi.SetWindowPos(handle, 0, 0, 0, 0, 0, winapi.SwpNomove)
+	}
+	if windowClass == "BannerAdContainer" {
+		parentHandle := winapi.GetParent(handle)
+		winapi.ShowWindow(parentHandle, 0)
+		winapi.SetWindowPos(parentHandle, 0, 0, 0, 0, 0, winapi.SwpNomove)
 	}
 }
 

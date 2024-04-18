@@ -15,7 +15,7 @@ func wndProc(hWnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	case winapi.WmTrayicon:
 		switch uint16(lParam) {
 		case winapi.WmLbuttondblclk:
-			close(*quit)
+			*quit <- struct{}{}
 		}
 	case winapi.WmDestroy:
 		winapi.PostQuitMessage(0)
