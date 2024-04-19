@@ -110,7 +110,7 @@ func removeAd() {
 				for _, candidate := range candidates {
 					if candidate[1] == mainWindowParentHandle {
 						winapi.ShowWindow(candidate[0], 0)
-						winapi.SetWindowPos(candidate[0], 0, 0, 0, 0, 0, winapi.SwpNomove)
+						winapi.MoveWindow(candidate[0], 0, 0, 0, 0, true)
 						break
 					}
 				}

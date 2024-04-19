@@ -33,6 +33,7 @@ var (
 	defWindowProc            = user32.NewProc("DefWindowProcW")
 	registerClassEx          = user32.NewProc("RegisterClassExW")
 	createWindowEx           = user32.NewProc("CreateWindowExW")
+	moveWindow               = user32.NewProc("MoveWindow")
 )
 
 func cStr(str string) uintptr {
@@ -166,4 +167,20 @@ func LoadIcon(instance uintptr, iconName *uint16) (uintptr, error) {
 		return 0, err
 	}
 	return ret, nil
+}
+
+func MoveWindow(hWnd windows.HWND, x, y, width, height int32, repaint bool) bool {
+	shouldRepaint := 0
+	if repaint {
+		shouldRepaint = 1
+	}
+	r, _, _ := moveWindow.Call(
+		uintptr(hWnd),
+		uintptr(x),
+		uintptr(y),
+		uintptr(width),
+		uintptr(height),
+		uintptr(shouldRepaint),
+	)
+	return r != 0
 }
