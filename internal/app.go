@@ -86,12 +86,31 @@ func removeAd() {
 
 			rect := new(winapi.Rect)
 			winapi.GetWindowRect(wnd, rect)
+			var mainWindowParentHandle windows.HWND
+			var candidates [][]windows.HWND
 			for _, childHandle := range childHandles {
 				className := winapi.GetClassName(childHandle)
 				windowText := winapi.GetWindowText(childHandle)
+				parentHandle := winapi.GetParent(childHandle)
+				if className == "EVA_ChildWindow" {
+					if windowText == "" {
+						candidates = append(candidates, []windows.HWND{childHandle, parentHandle})
+					} else if strings.HasPrefix(windowText, "OnlineMainView") {
+						mainWindowParentHandle = parentHandle
+					}
+				}
 				HideMainWindowAd(className, childHandle)
 				HideMainViewAdArea(windowText, rect, childHandle)
 				HideLockScreenAdArea(windowText, rect, childHandle)
+			}
+			if mainWindowParentHandle != 0 && len(candidates) > 0 {
+				for _, candidate := range candidates {
+					if candidate[1] == mainWindowParentHandle {
+						winapi.ShowWindow(candidate[0], 0)
+						winapi.SetWindowPos(candidate[0], 0, 0, 0, 0, 0, winapi.SwpNomove)
+						break
+					}
+				}
 			}
 		}
 		HidePopupAd()
