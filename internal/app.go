@@ -57,7 +57,7 @@ func watch() {
 
 				if strings.ToLower(szExeFile) == executable {
 					winapi.EnumWindows(enumWindow, uintptr(pe32.Th32ProcessID))
-					break
+					//break
 				}
 
 				if !winapi.Process32Next(uintptr(snapshot), &pe32) {
