@@ -13,30 +13,6 @@ const (
 	MainViewPadding     = 31
 )
 
-func HidePopupAd() {
-	var popupHandle windows.HWND
-	for {
-		popupHandle = winapi.FindWindowEx(0, popupHandle, "", "")
-		if popupHandle == 0 {
-			break
-		}
-		if winapi.GetParent(popupHandle) != 0 {
-			continue
-		}
-		className := winapi.GetClassName(popupHandle)
-		if !strings.Contains(className, "RichPopWnd") {
-			continue
-		}
-		rect := new(winapi.Rect)
-		_ = winapi.GetWindowRect(popupHandle, rect)
-		width := rect.Right - rect.Left
-		height := rect.Bottom - rect.Top
-		if width == 300 && height == 150 {
-			winapi.SendMessage(popupHandle, winapi.WmClose, 0, 0)
-		}
-	}
-}
-
 func HideMainWindowAd(windowClass string, handle windows.HWND) {
 	// @deprecated
 	if windowClass == "BannerAdWnd" {
@@ -68,5 +44,17 @@ func HideMainViewAdArea(windowText string, rect *winapi.Rect, handle windows.HWN
 		}
 		winapi.UpdateWindow(handle)
 		winapi.SetWindowPos(handle, 0, 0, 0, width, height, winapi.SwpNomove)
+	}
+}
+
+func HidePopupAd(windowClass string, handle windows.HWND) {
+	if windowClass == "AdFitWebView" {
+		parentHandle := winapi.GetParent(handle)
+		winapi.SendMessage(parentHandle, winapi.WmClose, 0, 0)
+		winapi.ShowWindow(parentHandle, 0)
+		winapi.MoveWindow(parentHandle, 0, 0, 0, 0, true)
+		winapi.SendMessage(handle, winapi.WmClose, 0, 0)
+		winapi.ShowWindow(handle, 0)
+		winapi.MoveWindow(handle, 0, 0, 0, 0, true)
 	}
 }

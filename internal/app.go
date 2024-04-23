@@ -105,6 +105,7 @@ func removeAd() {
 				HideMainWindowAd(className, childHandle)
 				HideMainViewAdArea(windowText, rect, childHandle)
 				HideLockScreenAdArea(windowText, rect, childHandle)
+				HidePopupAd(className, childHandle)
 			}
 			if mainWindowParentHandle != 0 && len(candidates) > 0 {
 				for _, candidate := range candidates {
@@ -116,7 +117,6 @@ func removeAd() {
 				}
 			}
 		}
-		HidePopupAd()
 		mutex.Unlock()
 		time.Sleep(sleepTime)
 	}
