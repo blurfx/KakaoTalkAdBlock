@@ -92,16 +92,13 @@ func removeAd() {
 			var candidates [][]windows.HWND
 			for _, childHandle := range childHandles {
 				className := winapi.GetClassName(childHandle)
-				if className != "EVA_ChildWindow" {
-					continue
-				}
 				windowText := winapi.GetWindowText(childHandle)
 				parentHandle := winapi.GetParent(childHandle)
 				if parentHandle != wnd {
 					continue
 				}
 				parentText := winapi.GetWindowText(parentHandle)
-				if windowText == "" && parentText != "" {
+				if className != "EVA_ChildWindow" && windowText == "" && parentText != "" {
 					winapi.SendMessage(childHandle, winapi.WmClose, 0, 0)
 					candidates = append(candidates, []windows.HWND{childHandle, parentHandle})
 				}
