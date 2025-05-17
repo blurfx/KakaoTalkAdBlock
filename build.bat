@@ -2,7 +2,7 @@
 
 pushd winres
 
-go-winres simply -icon=icon.ico -arch amd64,386,arm64
+go-winres simply --icon icon.ico --arch amd64,386,arm64
 
 popd
 
