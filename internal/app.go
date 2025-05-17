@@ -19,6 +19,8 @@ const executable = "kakaotalk.exe"
 
 var mutex = &sync.Mutex{}
 var handles = make([]windows.HWND, 0)
+var windowTextMap = make(map[windows.HWND]string)
+var windowClassMap = make(map[windows.HWND]string)
 
 func uint8ToStr(arr []uint8) string {
 	n := bytes.Index(arr, []uint8{0})
@@ -91,13 +93,25 @@ func removeAd() {
 			winapi.GetWindowRect(wnd, rect)
 			var candidates [][]windows.HWND
 			for _, childHandle := range childHandles {
-				className := winapi.GetClassName(childHandle)
-				windowText := winapi.GetWindowText(childHandle)
+				className, ok := windowClassMap[childHandle]
+				if !ok {
+					className = winapi.GetClassName(childHandle)
+					windowClassMap[childHandle] = className
+				}
+				windowText, ok := windowTextMap[childHandle]
+				if !ok {
+					windowText = winapi.GetWindowText(childHandle)
+					windowTextMap[childHandle] = windowText
+				}
 				parentHandle := winapi.GetParent(childHandle)
 				if parentHandle != wnd {
 					continue
 				}
-				parentText := winapi.GetWindowText(parentHandle)
+				parentText, ok := windowTextMap[parentHandle]
+				if !ok {
+					parentText = winapi.GetWindowText(parentHandle)
+					windowTextMap[parentHandle] = parentText
+				}
 				if className != "EVA_ChildWindow" && windowText == "" && parentText != "" {
 					winapi.SendMessage(childHandle, winapi.WmClose, 0, 0)
 					candidates = append(candidates, []windows.HWND{childHandle, parentHandle})
