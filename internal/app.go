@@ -40,7 +40,9 @@ func watch() {
 		winapi.GetWindowThreadProcessId(handle, &pe32.Th32ProcessID)
 		if processId == uintptr(pe32.Th32ProcessID) {
 			lastFoundAt = time.Now().Unix()
-			handles = append(handles, handle)
+			if winapi.GetClassName(handle) == "EVA_Window_Dblclk" && winapi.GetWindowText(handle) != "" && winapi.GetParent(handle) == 0 {
+				handles = append(handles, handle)
+			}
 		}
 		return 1
 	})
@@ -112,7 +114,7 @@ func removeAd() {
 					parentText = winapi.GetWindowText(parentHandle)
 					windowTextMap[parentHandle] = parentText
 				}
-				if className != "EVA_ChildWindow" && windowText == "" && parentText != "" {
+				if className == "EVA_ChildWindow" && windowText == "" && parentText != "" {
 					winapi.SendMessage(childHandle, winapi.WmClose, 0, 0)
 					candidates = append(candidates, []windows.HWND{childHandle, parentHandle})
 				}
