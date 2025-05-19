@@ -6,6 +6,10 @@ AdBlocker for KakaoTalk Windows client.
 
 ![](https://raw.githubusercontent.com/blurfx/KakaoTalkAdBlock/main/kakaotalk.png)
 
-This program runs in the tray. To exit, double-click the tray icon.
+This program runs in the background.
+
+Right-click the tray icon to quit, or to check for new versions.
+
+*Earlier versions of 2.2.0 can be quit by double-clicking the tray icon.*
 
 ![](https://raw.githubusercontent.com/blurfx/KakaoTalkAdBlock/main/tray.png)
