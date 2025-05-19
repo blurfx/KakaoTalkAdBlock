@@ -17,9 +17,11 @@ const sleepTime = 100 * time.Millisecond
 const executable = "kakaotalk.exe"
 
 var mutex = &sync.Mutex{}
-var handles = make([]windows.HWND, 0)
+var mainWindowHandleMap = make(map[windows.HWND]struct{})
+var adSubwindowCandidateMap = make(map[windows.HWND]struct{})
 var windowTextMap = make(map[windows.HWND]string)
 var windowClassMap = make(map[windows.HWND]string)
+var enumWindowCallbackMap = make(map[windows.HWND]uintptr)
 
 func uint8ToStr(arr []uint8) string {
 	n := bytes.Index(arr, []uint8{0})
@@ -39,8 +41,17 @@ func watch(ctx context.Context) {
 		winapi.GetWindowThreadProcessId(handle, &pe32.Th32ProcessID)
 		if processId == uintptr(pe32.Th32ProcessID) {
 			lastFoundAt = time.Now().Unix()
-			if winapi.GetClassName(handle) == "EVA_Window_Dblclk" && winapi.GetWindowText(handle) != "" && winapi.GetParent(handle) == 0 {
-				handles = append(handles, handle)
+			if winapi.GetClassName(handle) == "EVA_Window_Dblclk" {
+				windowText := winapi.GetWindowText(handle)
+				parentHandle := winapi.GetParent(handle)
+
+				if windowText != "" && parentHandle == 0 {
+					mainWindowHandleMap[handle] = struct{}{}
+				} else if windowText == "" && parentHandle != 0 {
+					if _, ok := mainWindowHandleMap[parentHandle]; ok {
+						adSubwindowCandidateMap[handle] = struct{}{}
+					}
+				}
 			}
 		}
 		return 1
@@ -54,7 +65,6 @@ func watch(ctx context.Context) {
 			return
 		case <-ticker.C:
 			mutex.Lock()
-			handles = handles[:0]
 			if lastFoundAt < time.Now().Unix()-1 {
 				snapshot = winapi.CreateToolhelp32Snapshot(winapi.Th32csSnapprocess, 0)
 				lastFoundAt = time.Now().Unix()
@@ -65,7 +75,6 @@ func watch(ctx context.Context) {
 
 					if strings.ToLower(szExeFile) == executable {
 						winapi.EnumWindows(enumWindow, uintptr(pe32.Th32ProcessID))
-						//break
 					}
 
 					if !winapi.Process32Next(uintptr(snapshot), &pe32) {
@@ -80,12 +89,8 @@ func watch(ctx context.Context) {
 
 func removeAd(ctx context.Context) {
 	childHandles := make([]windows.HWND, 0)
-
-	var enumWindow = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
-		childHandles = append(childHandles, handle)
-		return 1
-	})
 	ticker := time.NewTicker(sleepTime)
+
 	defer ticker.Stop()
 	for {
 		select {
@@ -93,12 +98,20 @@ func removeAd(ctx context.Context) {
 			return
 		case <-ticker.C:
 			mutex.Lock()
-			for _, wnd := range handles {
+			for wnd := range mainWindowHandleMap {
 				if wnd == 0 {
 					continue
 				}
 				childHandles = childHandles[:0]
 				var handle windows.HWND
+				enumWindow, ok := enumWindowCallbackMap[wnd]
+				if !ok {
+					enumWindow = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
+						childHandles = append(childHandles, handle)
+						return 1
+					})
+					enumWindowCallbackMap[wnd] = enumWindow
+				}
 				winapi.EnumChildWindows(wnd, enumWindow, uintptr(unsafe.Pointer(&handle)))
 
 				rect := new(winapi.Rect)
@@ -128,15 +141,46 @@ func removeAd(ctx context.Context) {
 						winapi.SendMessage(childHandle, winapi.WmClose, 0, 0)
 						candidates = append(candidates, []windows.HWND{childHandle, parentHandle})
 					}
-					HideMainWindowAd(className, childHandle)
 					HideMainViewAdArea(windowText, rect, childHandle)
 					HideLockScreenAdArea(windowText, rect, childHandle)
-					HidePopupAd(className, childHandle)
+				}
+			}
+			for wnd := range adSubwindowCandidateMap {
+				if hasChromeLegacyWindow(wnd) {
+					winapi.ShowWindow(wnd, 0)
 				}
 			}
 			mutex.Unlock()
 		}
 	}
+}
+
+func hasChromeLegacyWindow(handle windows.HWND) bool {
+	childHandles := make([]windows.HWND, 0)
+
+	enumWindow, ok := enumWindowCallbackMap[handle]
+	if !ok {
+		enumWindow = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
+			childHandles = append(childHandles, handle)
+			return 1
+		})
+		enumWindowCallbackMap[handle] = enumWindow
+	}
+	winapi.EnumChildWindows(handle, enumWindow, uintptr(unsafe.Pointer(&handle)))
+
+	for _, wnd := range childHandles {
+		if hasChromeLegacyWindow(wnd) {
+			return true
+		}
+	}
+
+	className, ok := windowClassMap[handle]
+	if !ok {
+		className = winapi.GetWindowText(handle)
+		windowClassMap[handle] = className
+	}
+	return className == "Chrome Legacy Window"
+
 }
 
 func Run(ctx context.Context) {
