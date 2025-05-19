@@ -2,7 +2,7 @@
 
 ### Requirements
 
-- Go 1.20+
+- Go 1.21+
 - [go-winres](https://github.com/tc-hib/go-winres)
 
 ### Development
