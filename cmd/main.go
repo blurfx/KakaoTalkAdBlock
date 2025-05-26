@@ -4,12 +4,15 @@ package main
 
 import (
 	"context"
-	"github.com/energye/systray"
 	"kakaotalkadblock/internal"
+	"kakaotalkadblock/internal/win"
 	"kakaotalkadblock/winres"
 	"os/exec"
+
+	"github.com/energye/systray"
+
+	_ "kakaotalkadblock/winres"
 )
-import _ "kakaotalkadblock/winres"
 
 const VERSION = "2.2.0"
 
@@ -34,6 +37,20 @@ func main() {
 			).Start()
 		})
 		systray.AddSeparator()
+
+		startupItem := systray.AddMenuItem("Run on startup", "Run on startup")
+		if win.IsStartupEnabled() {
+			startupItem.Check()
+		}
+		startupItem.Click(func() {
+			if startupItem.Checked() {
+				startupItem.Uncheck()
+				win.SetStartupEnabled(false)
+			} else {
+				startupItem.Check()
+				win.SetStartupEnabled(true)
+			}
+		})
 		systray.AddMenuItem("E&xit", "Exit").Click(destroy)
 
 		internal.Run(ctx)
