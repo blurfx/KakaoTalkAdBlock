@@ -41,14 +41,22 @@ func watch(ctx context.Context) {
 		winapi.GetWindowThreadProcessId(handle, &pe32.Th32ProcessID)
 		if processId == uintptr(pe32.Th32ProcessID) {
 			lastFoundAt = time.Now().Unix()
-			if winapi.GetClassName(handle) == "EVA_Window_Dblclk" {
+			className := winapi.GetClassName(handle)
+			if className == "EVA_Window_Dblclk" || className == "EVA_Window" {
 				windowText := winapi.GetWindowText(handle)
 				parentHandle := winapi.GetParent(handle)
 
-				if windowText != "" && parentHandle == 0 {
-					mainWindowHandleMap[handle] = struct{}{}
-				} else if windowText == "" && parentHandle != 0 {
-					if _, ok := mainWindowHandleMap[parentHandle]; ok {
+				switch className {
+				case "EVA_Window_Dblclk":
+					if windowText != "" && parentHandle == 0 {
+						mainWindowHandleMap[handle] = struct{}{}
+					} else if windowText == "" && parentHandle != 0 {
+						if _, ok := mainWindowHandleMap[parentHandle]; ok {
+							adSubwindowCandidateMap[handle] = struct{}{}
+						}
+					}
+				case "EVA_Window":
+					if windowText == "" && parentHandle == 0 {
 						adSubwindowCandidateMap[handle] = struct{}{}
 					}
 				}
