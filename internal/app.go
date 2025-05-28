@@ -22,6 +22,7 @@ var adSubwindowCandidateMap = make(map[windows.HWND]struct{})
 var windowTextMap = make(map[windows.HWND]string)
 var windowClassMap = make(map[windows.HWND]string)
 var enumWindowCallbackMap = make(map[windows.HWND]uintptr)
+var customScrollHandleMap = make(map[windows.HWND]bool)
 
 func uint8ToStr(arr []uint8) string {
 	n := bytes.Index(arr, []uint8{0})
@@ -124,7 +125,6 @@ func removeAd(ctx context.Context) {
 
 				rect := new(winapi.Rect)
 				winapi.GetWindowRect(wnd, rect)
-				var candidates [][]windows.HWND
 				for _, childHandle := range childHandles {
 					className, ok := windowClassMap[childHandle]
 					if !ok {
@@ -145,16 +145,23 @@ func removeAd(ctx context.Context) {
 						parentText = winapi.GetWindowText(parentHandle)
 						windowTextMap[parentHandle] = parentText
 					}
+
 					if className == "EVA_ChildWindow" && windowText == "" && parentText != "" {
-						winapi.SendMessage(childHandle, winapi.WmClose, 0, 0)
-						candidates = append(candidates, []windows.HWND{childHandle, parentHandle})
+						hasCustomScroll, ok := customScrollHandleMap[wnd]
+						if !ok {
+							hasCustomScroll = hasChildrenWithClassName(childHandle, "_EVA_")
+							customScrollHandleMap[wnd] = hasCustomScroll
+						}
+						if !hasCustomScroll {
+							winapi.SendMessage(childHandle, winapi.WmClose, 0, 0)
+						}
 					}
 					HideMainViewAdArea(windowText, rect, childHandle)
 					HideLockScreenAdArea(windowText, rect, childHandle)
 				}
 			}
 			for wnd := range adSubwindowCandidateMap {
-				if hasChromeLegacyWindow(wnd) {
+				if hasChildrenWithClassName(wnd, "Chrome Legacy Window") {
 					winapi.ShowWindow(wnd, 0)
 				}
 			}
@@ -163,7 +170,7 @@ func removeAd(ctx context.Context) {
 	}
 }
 
-func hasChromeLegacyWindow(handle windows.HWND) bool {
+func hasChildrenWithClassName(handle windows.HWND, className string) bool {
 	childHandles := make([]windows.HWND, 0)
 
 	enumWindow, ok := enumWindowCallbackMap[handle]
@@ -177,17 +184,17 @@ func hasChromeLegacyWindow(handle windows.HWND) bool {
 	winapi.EnumChildWindows(handle, enumWindow, uintptr(unsafe.Pointer(&handle)))
 
 	for _, wnd := range childHandles {
-		if hasChromeLegacyWindow(wnd) {
+		if hasChildrenWithClassName(wnd, className) {
 			return true
 		}
 	}
 
-	className, ok := windowClassMap[handle]
+	windowClass, ok := windowClassMap[handle]
 	if !ok {
-		className = winapi.GetWindowText(handle)
-		windowClassMap[handle] = className
+		windowClass = winapi.GetClassName(handle)
+		windowClassMap[handle] = windowClass
 	}
-	return className == "Chrome Legacy Window"
+	return strings.HasPrefix(windowClass, className)
 
 }
 
