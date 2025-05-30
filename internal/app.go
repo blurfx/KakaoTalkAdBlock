@@ -149,7 +149,7 @@ func removeAd(ctx context.Context) {
 					if className == "EVA_ChildWindow" && windowText == "" && parentText != "" {
 						hasCustomScroll, ok := customScrollHandleMap[wnd]
 						if !ok {
-							hasCustomScroll = hasChildrenWithClassName(childHandle, "_EVA_")
+							hasCustomScroll = classNameStartsWith(childHandle, "_EVA_")
 							customScrollHandleMap[wnd] = hasCustomScroll
 						}
 						if !hasCustomScroll {
@@ -161,7 +161,7 @@ func removeAd(ctx context.Context) {
 				}
 			}
 			for wnd := range adSubwindowCandidateMap {
-				if hasChildrenWithClassName(wnd, "Chrome Legacy Window") {
+				if hasChromeLegacyWindow(wnd) {
 					winapi.ShowWindow(wnd, 0)
 				}
 			}
@@ -170,7 +170,7 @@ func removeAd(ctx context.Context) {
 	}
 }
 
-func hasChildrenWithClassName(handle windows.HWND, className string) bool {
+func classNameStartsWith(handle windows.HWND, className string) bool {
 	childHandles := make([]windows.HWND, 0)
 
 	enumWindow, ok := enumWindowCallbackMap[handle]
@@ -184,7 +184,7 @@ func hasChildrenWithClassName(handle windows.HWND, className string) bool {
 	winapi.EnumChildWindows(handle, enumWindow, uintptr(unsafe.Pointer(&handle)))
 
 	for _, wnd := range childHandles {
-		if hasChildrenWithClassName(wnd, className) {
+		if classNameStartsWith(wnd, className) {
 			return true
 		}
 	}
@@ -195,6 +195,33 @@ func hasChildrenWithClassName(handle windows.HWND, className string) bool {
 		windowClassMap[handle] = windowClass
 	}
 	return strings.HasPrefix(windowClass, className)
+}
+
+func hasChromeLegacyWindow(handle windows.HWND) bool {
+	childHandles := make([]windows.HWND, 0)
+
+	enumWindow, ok := enumWindowCallbackMap[handle]
+	if !ok {
+		enumWindow = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
+			childHandles = append(childHandles, handle)
+			return 1
+		})
+		enumWindowCallbackMap[handle] = enumWindow
+	}
+	winapi.EnumChildWindows(handle, enumWindow, uintptr(unsafe.Pointer(&handle)))
+
+	for _, wnd := range childHandles {
+		if hasChromeLegacyWindow(wnd) {
+			return true
+		}
+	}
+
+	windowText, ok := windowTextMap[handle]
+	if !ok {
+		windowText = winapi.GetWindowText(handle)
+		windowTextMap[handle] = windowText
+	}
+	return windowText == "Chrome Legacy Window"
 
 }
 
