@@ -29,14 +29,23 @@ func main() {
 		systray.SetIcon(winres.IconData)
 		systray.SetTooltip("KakaoTalkAdBlock")
 		systray.AddMenuItem(VERSION, VERSION).Disable()
-		systray.AddMenuItem("Check latest releases", "Check latest releases").Click(func() {
+		checkRelease := systray.AddMenuItem("", "Check latest releases")
+		checkRelease.Click(func() {
 			exec.Command(
 				"rundll32",
 				"url.dll,FileProtocolHandler",
 				"https://github.com/blurfx/KakaoTalkAdBlock/releases",
 			).Start()
 		})
+		checkRelease.Hide()
 		systray.AddSeparator()
+		go func() {
+			tagName, hasNewRelease := internal.CheckLatestVersion(VERSION)
+			if hasNewRelease {
+				checkRelease.SetTitle("New version available: " + tagName)
+				checkRelease.Show()
+			}
+		}()
 
 		startupItem := systray.AddMenuItem("Run on startup", "Run on startup")
 		if win.IsStartupEnabled() {
