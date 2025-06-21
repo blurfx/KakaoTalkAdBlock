@@ -123,28 +123,20 @@ func removeAd(ctx context.Context) {
 				}
 				winapi.EnumChildWindows(wnd, enumWindow, uintptr(unsafe.Pointer(&handle)))
 
+				if !isMainWindow(childHandles) {
+					continue
+				}
+
 				rect := new(winapi.Rect)
 				winapi.GetWindowRect(wnd, rect)
-				for _, childHandle := range childHandles {
-					className, ok := windowClassMap[childHandle]
-					if !ok {
-						className = winapi.GetClassName(childHandle)
-						windowClassMap[childHandle] = className
-					}
-					windowText, ok := windowTextMap[childHandle]
-					if !ok {
-						windowText = winapi.GetWindowText(childHandle)
-						windowTextMap[childHandle] = windowText
-					}
+				for _, childHandle := range childHandles[1:] {
+					className := getWindowClass(childHandle)
+					windowText := getWindowText(childHandle)
 					parentHandle := winapi.GetParent(childHandle)
 					if parentHandle != wnd {
 						continue
 					}
-					parentText, ok := windowTextMap[parentHandle]
-					if !ok {
-						parentText = winapi.GetWindowText(parentHandle)
-						windowTextMap[parentHandle] = parentText
-					}
+					parentText := getWindowText(parentHandle)
 
 					if className == "EVA_ChildWindow" && windowText == "" && parentText != "" {
 						hasCustomScroll, ok := customScrollHandleMap[wnd]
@@ -189,11 +181,7 @@ func classNameStartsWith(handle windows.HWND, className string) bool {
 		}
 	}
 
-	windowClass, ok := windowClassMap[handle]
-	if !ok {
-		windowClass = winapi.GetClassName(handle)
-		windowClassMap[handle] = windowClass
-	}
+	windowClass := getWindowClass(handle)
 	return strings.HasPrefix(windowClass, className)
 }
 
@@ -216,13 +204,42 @@ func hasChromeLegacyWindow(handle windows.HWND) bool {
 		}
 	}
 
-	windowText, ok := windowTextMap[handle]
-	if !ok {
-		windowText = winapi.GetWindowText(handle)
-		windowTextMap[handle] = windowText
-	}
+	windowText := getWindowText(handle)
 	return windowText == "Chrome Legacy Window"
 
+}
+
+func isMainWindow(handles []windows.HWND) bool {
+	for _, wnd := range handles {
+		windowClass := getWindowClass(wnd)
+		if windowClass != "EVA_ChildWindow" {
+			continue
+		}
+
+		windowText := winapi.GetWindowText(wnd)
+		if strings.HasPrefix(windowText, "OnlineMainView") || strings.HasPrefix(windowText, "LockModeView") {
+			return true
+		}
+	}
+	return false
+}
+
+func getWindowText(handle windows.HWND) string {
+	text, ok := windowTextMap[handle]
+	if !ok {
+		text = winapi.GetWindowText(handle)
+		windowTextMap[handle] = text
+	}
+	return text
+}
+
+func getWindowClass(handle windows.HWND) string {
+	class, ok := windowClassMap[handle]
+	if !ok {
+		class = winapi.GetClassName(handle)
+		windowClassMap[handle] = class
+	}
+	return class
 }
 
 func Run(ctx context.Context) {
