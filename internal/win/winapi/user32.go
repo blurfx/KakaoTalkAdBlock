@@ -15,20 +15,31 @@ type Rect struct {
 }
 
 var (
-	user32                   = windows.NewLazySystemDLL("user32.dll")
-	getClassName             = user32.NewProc("GetClassNameW")
-	enumChildWindows         = user32.NewProc("EnumChildWindows")
-	enumWindows              = user32.NewProc("EnumWindows")
-	showWindow               = user32.NewProc("ShowWindow")
-	getParent                = user32.NewProc("GetParent")
-	setWindowPos             = user32.NewProc("SetWindowPos")
-	getWindowText            = user32.NewProc("GetWindowTextW")
-	getWindowRect            = user32.NewProc("GetWindowRect")
-	updateWindow             = user32.NewProc("UpdateWindow")
-	sendMessage              = user32.NewProc("SendMessageW")
-	getWindowThreadProcessId = user32.NewProc("GetWindowThreadProcessId")
-	moveWindow               = user32.NewProc("MoveWindow")
+	user32                       = windows.NewLazySystemDLL("user32.dll")
+	getClassName                 = user32.NewProc("GetClassNameW")
+	enumChildWindows             = user32.NewProc("EnumChildWindows")
+	enumWindows                  = user32.NewProc("EnumWindows")
+	showWindow                   = user32.NewProc("ShowWindow")
+	getParent                    = user32.NewProc("GetParent")
+	setWindowPos                 = user32.NewProc("SetWindowPos")
+	getWindowLongPtr             = user32.NewProc("GetWindowLongPtrW")
+	setWindowLongPtr             = user32.NewProc("SetWindowLongPtrW")
+	getWindowText                = user32.NewProc("GetWindowTextW")
+	getWindowRect                = user32.NewProc("GetWindowRect")
+	getDpiForWindow              = user32.NewProc("GetDpiForWindow")
+	isWindow                     = user32.NewProc("IsWindow")
+	isWindowVisible              = user32.NewProc("IsWindowVisible")
+	isZoomed                     = user32.NewProc("IsZoomed")
+	updateWindow                 = user32.NewProc("UpdateWindow")
+	sendMessage                  = user32.NewProc("SendMessageW")
+	getWindowThreadProcessId     = user32.NewProc("GetWindowThreadProcessId")
+	moveWindow                   = user32.NewProc("MoveWindow")
+	setWindowRgn                 = user32.NewProc("SetWindowRgn")
+	redrawWindow                 = user32.NewProc("RedrawWindow")
+	setThreadDpiAwarenessContext = user32.NewProc("SetThreadDpiAwarenessContext")
 )
+
+var windowStyleIndexArg = uintptr(^uint32(15))
 
 func GetClassName(hWnd windows.HWND) string {
 	buff := make([]uint16, 255)
@@ -71,6 +82,31 @@ func GetWindowRect(hWnd windows.HWND, lpRect *Rect) bool {
 	return r != 0
 }
 
+func GetWindowStyle(hWnd windows.HWND) uintptr {
+	style, _, _ := getWindowLongPtr.Call(uintptr(hWnd), windowStyleIndexArg)
+	return style
+}
+
+func SetWindowStyle(hWnd windows.HWND, style uintptr) bool {
+	setWindowLongPtr.Call(uintptr(hWnd), windowStyleIndexArg, style)
+	return GetWindowStyle(hWnd) == style
+}
+
+func IsWindow(hWnd windows.HWND) bool {
+	result, _, _ := isWindow.Call(uintptr(hWnd))
+	return result != 0
+}
+
+func IsWindowVisible(hWnd windows.HWND) bool {
+	result, _, _ := isWindowVisible.Call(uintptr(hWnd))
+	return result != 0
+}
+
+func IsZoomed(hWnd windows.HWND) bool {
+	result, _, _ := isZoomed.Call(uintptr(hWnd))
+	return result != 0
+}
+
 func UpdateWindow(hWnd windows.HWND) bool {
 	ret, _, _ := updateWindow.Call(uintptr(hWnd))
 	return ret != 0
@@ -100,4 +136,46 @@ func MoveWindow(hWnd windows.HWND, x, y, width, height int32, repaint bool) bool
 		uintptr(shouldRepaint),
 	)
 	return r != 0
+}
+
+func GetDpiForWindow(hWnd windows.HWND) uint32 {
+	if err := getDpiForWindow.Find(); err != nil {
+		return 0
+	}
+	dpi, _, _ := getDpiForWindow.Call(uintptr(hWnd))
+	return uint32(dpi)
+}
+
+func SetWindowRgn(hWnd windows.HWND, region uintptr, redraw bool) bool {
+	shouldRedraw := 0
+	if redraw {
+		shouldRedraw = 1
+	}
+	r, _, _ := setWindowRgn.Call(uintptr(hWnd), region, uintptr(shouldRedraw))
+	return r != 0
+}
+
+func RefreshWindowFrame(hWnd windows.HWND) bool {
+	flags := uint32(SwpNosize | SwpNomove | SwpNozorder | SwpNoactivate | SwpFramechanged)
+	return SetWindowPos(hWnd, 0, 0, 0, 0, 0, flags)
+}
+
+func RedrawWindow(hWnd windows.HWND) bool {
+	const flags = 0x0001 | 0x0080 | 0x0100 | 0x0400
+	result, _, _ := redrawWindow.Call(uintptr(hWnd), 0, 0, flags)
+	return result != 0
+}
+
+func EnableThreadPerMonitorV2DpiAwareness() uintptr {
+	if err := setThreadDpiAwarenessContext.Find(); err != nil {
+		return 0
+	}
+	previousContext, _, _ := setThreadDpiAwarenessContext.Call(^uintptr(3))
+	return previousContext
+}
+
+func RestoreThreadDpiAwareness(previousContext uintptr) {
+	if previousContext != 0 {
+		setThreadDpiAwarenessContext.Call(previousContext)
+	}
 }

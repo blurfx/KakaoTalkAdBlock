@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"context"
+	"kakaotalkadblock/internal/beta"
 	"kakaotalkadblock/internal/win/winapi"
 	"strings"
 	"sync"
@@ -43,9 +44,10 @@ func watch(ctx context.Context) {
 		if processId == uintptr(pe32.Th32ProcessID) {
 			lastFoundAt = time.Now().Unix()
 			className := winapi.GetClassName(handle)
+			parentHandle := winapi.GetParent(handle)
+			beta.TrackWindow(handle, className, parentHandle)
 			if className == "EVA_Window_Dblclk" || className == "EVA_Window" {
 				windowText := winapi.GetWindowText(handle)
-				parentHandle := winapi.GetParent(handle)
 
 				switch className {
 				case "EVA_Window_Dblclk":
@@ -82,7 +84,7 @@ func watch(ctx context.Context) {
 				for {
 					szExeFile = uint8ToStr(pe32.SzExeFile[:])
 
-					if strings.ToLower(szExeFile) == executable {
+					if strings.ToLower(szExeFile) == executable || beta.IsExecutable(szExeFile) {
 						winapi.EnumWindows(enumWindow, uintptr(pe32.Th32ProcessID))
 					}
 
@@ -101,6 +103,7 @@ func removeAd(ctx context.Context) {
 	ticker := time.NewTicker(sleepTime)
 
 	defer ticker.Stop()
+	defer beta.Restore()
 	for {
 		select {
 		case <-ctx.Done():
@@ -157,6 +160,7 @@ func removeAd(ctx context.Context) {
 					winapi.ShowWindow(wnd, 0)
 				}
 			}
+			beta.RemoveAds()
 			mutex.Unlock()
 		}
 	}
