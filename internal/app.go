@@ -69,6 +69,9 @@ func watch(ctx context.Context) {
 	})
 	ticker := time.NewTicker(sleepTime)
 	defer ticker.Stop()
+	// Closure, not `defer winapi.CloseHandle(snapshot)`: deferred arguments are
+	// evaluated immediately, which would capture the zero handle.
+	defer func() { winapi.CloseHandle(snapshot) }()
 
 	for {
 		select {
@@ -77,6 +80,10 @@ func watch(ctx context.Context) {
 		case <-ticker.C:
 			mutex.Lock()
 			if lastFoundAt < time.Now().Unix()-1 {
+				// Release the previous snapshot before taking a new one.
+				// Without this every refresh leaks a kernel snapshot object,
+				// which happens roughly every 2s while KakaoTalk is not running.
+				winapi.CloseHandle(snapshot)
 				snapshot = winapi.CreateToolhelp32Snapshot(winapi.Th32csSnapprocess, 0)
 				lastFoundAt = time.Now().Unix()
 			}
