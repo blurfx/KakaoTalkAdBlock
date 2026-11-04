@@ -17,6 +17,7 @@ const (
 	chromeWidgetWindow    = "Chrome_WidgetWin_1"
 	chromeWidgetContainer = "Chrome_WidgetWin_0"
 	momentAdWindowTitle   = "MOMENT 광고"
+	adFitAdWindowTitle    = "AdFit NAS Advertisement"
 	chromeLegacyTitle     = "Chrome Legacy Window"
 	qt6AdContainerTitle   = "KakaoTalkUI"
 	clipExtraPadding      = 6
@@ -41,6 +42,7 @@ type windowClip struct {
 
 var mutex = &sync.Mutex{}
 var mainWindowHandleMap = make(map[windows.HWND]struct{})
+var ownedWindowHandleMap = make(map[windows.HWND]windows.HWND)
 var windowClipMap = make(map[windows.HWND]windowClip)
 var childWindowCollector []windows.HWND
 var childWindowCollectorCallback = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
@@ -53,11 +55,17 @@ func IsExecutable(name string) bool {
 }
 
 func TrackWindow(handle windows.HWND, className string, parentHandle windows.HWND) {
-	if !isQt6WindowClass(className) || parentHandle != 0 {
+	if !isQt6WindowClass(className) {
 		return
 	}
 	mutex.Lock()
-	mainWindowHandleMap[handle] = struct{}{}
+	if parentHandle == 0 {
+		delete(ownedWindowHandleMap, handle)
+		mainWindowHandleMap[handle] = struct{}{}
+	} else {
+		delete(mainWindowHandleMap, handle)
+		ownedWindowHandleMap[handle] = parentHandle
+	}
 	mutex.Unlock()
 }
 
@@ -78,7 +86,7 @@ func RemoveAds() {
 		if !winapi.IsWindowVisible(mainWindow) {
 			continue
 		}
-		hideMomentAds(mainWindow)
+		hideAds(mainWindow)
 	}
 }
 
@@ -99,16 +107,16 @@ func isQt6WindowClass(className string) bool {
 	return strings.HasPrefix(className, qt6WindowClassPrefix) && strings.HasSuffix(className, qtWindowClassSuffix)
 }
 
-func hideMomentAds(mainWindow windows.HWND) {
+func hideAds(mainWindow windows.HWND) {
 	if clip, known := windowClipMap[mainWindow]; known {
-		if winapi.IsWindow(clip.adWindow) {
+		if winapi.IsWindow(clip.adWindow) && belongsToMainWindow(mainWindow, clip.adWindow) {
 			clipWindowForAd(mainWindow, clip.adWindow)
 			return
 		}
 	}
 
-	for _, handle := range getChildWindows(mainWindow) {
-		if winapi.GetClassName(handle) != chromeWidgetWindow || winapi.GetWindowText(handle) != momentAdWindowTitle {
+	for _, handle := range getAdCandidateWindows(mainWindow) {
+		if winapi.GetClassName(handle) != chromeWidgetWindow || !isAdWindowTitle(winapi.GetWindowText(handle)) {
 			continue
 		}
 		if !containsChromeLegacyWindow(handle) {
@@ -123,9 +131,45 @@ func hideMomentAds(mainWindow windows.HWND) {
 		if !isQt6WindowClass(winapi.GetClassName(adWindow)) || winapi.GetWindowText(adWindow) != qt6AdContainerTitle {
 			continue
 		}
+		// An owned popup can wrap the Qt child that hosts the WebView.
+		for parent := winapi.GetParent(adWindow); parent != 0 && parent != mainWindow; parent = winapi.GetParent(adWindow) {
+			if !isQt6WindowClass(winapi.GetClassName(parent)) || winapi.GetWindowText(parent) != qt6AdContainerTitle {
+				break
+			}
+			adWindow = parent
+		}
 
 		clipWindowForAd(mainWindow, adWindow)
 	}
+}
+
+func isAdWindowTitle(title string) bool {
+	return title == momentAdWindowTitle || title == adFitAdWindowTitle
+}
+
+func belongsToMainWindow(mainWindow, handle windows.HWND) bool {
+	for parent := winapi.GetParent(handle); parent != 0; parent = winapi.GetParent(parent) {
+		if parent == mainWindow {
+			return true
+		}
+	}
+	return false
+}
+
+func getAdCandidateWindows(mainWindow windows.HWND) []windows.HWND {
+	handles := getChildWindows(mainWindow)
+	for handle, owner := range ownedWindowHandleMap {
+		if !winapi.IsWindow(handle) {
+			delete(ownedWindowHandleMap, handle)
+			continue
+		}
+		// EnumChildWindows does not enumerate owned top-level windows.
+		if owner == mainWindow && winapi.IsWindowVisible(handle) {
+			handles = append(handles, handle)
+			handles = append(handles, getChildWindows(handle)...)
+		}
+	}
+	return handles
 }
 
 func clipWindowForAd(mainWindow, adWindow windows.HWND) {
