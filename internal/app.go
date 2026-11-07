@@ -22,8 +22,19 @@ var mainWindowHandleMap = make(map[windows.HWND]struct{})
 var adSubwindowCandidateMap = make(map[windows.HWND]struct{})
 var windowTextMap = make(map[windows.HWND]string)
 var windowClassMap = make(map[windows.HWND]string)
-var enumWindowCallbackMap = make(map[windows.HWND]uintptr)
 var customScrollHandleMap = make(map[windows.HWND]bool)
+
+var childWindowCollector []windows.HWND
+var childWindowCollectorCallback = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
+	childWindowCollector = append(childWindowCollector, handle)
+	return 1
+})
+
+func getChildWindows(parent windows.HWND) []windows.HWND {
+	childWindowCollector = childWindowCollector[:0]
+	winapi.EnumChildWindows(parent, childWindowCollectorCallback, 0)
+	return append([]windows.HWND(nil), childWindowCollector...)
+}
 
 func uint8ToStr(arr []uint8) string {
 	n := bytes.Index(arr, []uint8{0})
@@ -106,7 +117,6 @@ func watch(ctx context.Context) {
 }
 
 func removeAd(ctx context.Context) {
-	childHandles := make([]windows.HWND, 0)
 	ticker := time.NewTicker(sleepTime)
 
 	defer ticker.Stop()
@@ -121,18 +131,7 @@ func removeAd(ctx context.Context) {
 				if wnd == 0 {
 					continue
 				}
-				childHandles = childHandles[:0]
-				var handle windows.HWND
-				enumWindow, ok := enumWindowCallbackMap[wnd]
-				if !ok {
-					enumWindow = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
-						childHandles = append(childHandles, handle)
-						return 1
-					})
-					enumWindowCallbackMap[wnd] = enumWindow
-				}
-				winapi.EnumChildWindows(wnd, enumWindow, uintptr(unsafe.Pointer(&handle)))
-
+				childHandles := getChildWindows(wnd)
 				if !isMainWindow(childHandles) {
 					continue
 				}
@@ -163,6 +162,12 @@ func removeAd(ctx context.Context) {
 				}
 			}
 			for wnd := range adSubwindowCandidateMap {
+				if !winapi.IsWindow(wnd) {
+					delete(adSubwindowCandidateMap, wnd)
+					delete(windowTextMap, wnd)
+					delete(windowClassMap, wnd)
+					continue
+				}
 				if hasChromeLegacyWindow(wnd) {
 					winapi.ShowWindow(wnd, 0)
 				}
@@ -174,50 +179,27 @@ func removeAd(ctx context.Context) {
 }
 
 func classNameStartsWith(handle windows.HWND, className string) bool {
-	childHandles := make([]windows.HWND, 0)
-
-	enumWindow, ok := enumWindowCallbackMap[handle]
-	if !ok {
-		enumWindow = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
-			childHandles = append(childHandles, handle)
-			return 1
-		})
-		enumWindowCallbackMap[handle] = enumWindow
+	if strings.HasPrefix(getWindowClass(handle), className) {
+		return true
 	}
-	winapi.EnumChildWindows(handle, enumWindow, uintptr(unsafe.Pointer(&handle)))
-
-	for _, wnd := range childHandles {
-		if classNameStartsWith(wnd, className) {
+	for _, wnd := range getChildWindows(handle) {
+		if strings.HasPrefix(getWindowClass(wnd), className) {
 			return true
 		}
 	}
-
-	windowClass := getWindowClass(handle)
-	return strings.HasPrefix(windowClass, className)
+	return false
 }
 
 func hasChromeLegacyWindow(handle windows.HWND) bool {
-	childHandles := make([]windows.HWND, 0)
-
-	enumWindow, ok := enumWindowCallbackMap[handle]
-	if !ok {
-		enumWindow = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
-			childHandles = append(childHandles, handle)
-			return 1
-		})
-		enumWindowCallbackMap[handle] = enumWindow
+	if getWindowText(handle) == "Chrome Legacy Window" {
+		return true
 	}
-	winapi.EnumChildWindows(handle, enumWindow, uintptr(unsafe.Pointer(&handle)))
-
-	for _, wnd := range childHandles {
-		if hasChromeLegacyWindow(wnd) {
+	for _, wnd := range getChildWindows(handle) {
+		if getWindowText(wnd) == "Chrome Legacy Window" {
 			return true
 		}
 	}
-
-	windowText := getWindowText(handle)
-	return windowText == "Chrome Legacy Window"
-
+	return false
 }
 
 func isMainWindow(handles []windows.HWND) bool {
