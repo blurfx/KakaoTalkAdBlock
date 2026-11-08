@@ -14,7 +14,7 @@ import (
 	_ "kakaotalkadblock/winres"
 )
 
-const VERSION = "2.2.6"
+const VERSION = "2.2.7"
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
