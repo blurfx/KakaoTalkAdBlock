@@ -14,6 +14,9 @@ func CheckLatestVersion(currentVersion string) (string, bool) {
 		return currentVersion, false
 	}
 	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return currentVersion, false
+	}
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -26,7 +29,10 @@ func CheckLatestVersion(currentVersion string) (string, bool) {
 		return currentVersion, false
 	}
 
-	tagName := data["tag_name"].(string)
+	tagName, ok := data["tag_name"].(string)
+	if !ok {
+		return currentVersion, false
+	}
 
 	if hasNewRelease(currentVersion, tagName) {
 		return tagName, true
