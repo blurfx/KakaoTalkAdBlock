@@ -69,7 +69,7 @@ func TrackWindow(handle windows.HWND, className string, parentHandle windows.HWN
 	mutex.Unlock()
 }
 
-func RemoveAds() {
+func RemoveAds() (refreshPending bool) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	previousDpiContext := winapi.EnableThreadPerMonitorV2DpiAwareness()
@@ -87,7 +87,11 @@ func RemoveAds() {
 			continue
 		}
 		hideAds(mainWindow)
+		if windowClipMap[mainWindow].refreshTicks > 0 {
+			refreshPending = true
+		}
 	}
+	return refreshPending
 }
 
 func Restore() {
