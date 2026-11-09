@@ -1,9 +1,6 @@
 package winapi
 
 const (
-	Th32csSnapprocess = 0x2
-	MaxPath           = 260
-
 	WmClose = 0x10
 
 	SwpNosize       = 0x0001

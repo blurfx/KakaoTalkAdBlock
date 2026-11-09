@@ -1,15 +1,14 @@
 package internal
 
 import (
-	"bytes"
 	"context"
 	"kakaotalkadblock/internal/beta"
 	"kakaotalkadblock/internal/win/winapi"
 	"maps"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
@@ -21,7 +20,14 @@ const (
 	eventSettleDelay    = 16 * time.Millisecond
 )
 
-var kakaoProcessIds = make(map[uint32]struct{})
+type processInfo struct {
+	// Kept open so the process ID cannot be reused while cached.
+	handle windows.Handle
+	kakao  bool
+}
+
+var processCache = make(map[uint32]processInfo)
+var imagePath = make([]uint16, windows.MAX_LONG_PATH)
 var mainWindowHandleMap = make(map[windows.HWND]struct{})
 var adSubwindowCandidateMap = make(map[windows.HWND]struct{})
 var windowTextMap = make(map[windows.HWND]string)
@@ -40,26 +46,45 @@ func getChildWindows(parent windows.HWND) []windows.HWND {
 	return append([]windows.HWND(nil), childWindowCollector...)
 }
 
-func uint8ToStr(arr []uint8) string {
-	n := bytes.Index(arr, []uint8{0})
-
-	return string(arr[:n])
+func isKakaoProcess(processId uint32) bool {
+	if info, ok := processCache[processId]; ok {
+		return info.kakao
+	}
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION|windows.SYNCHRONIZE, false, processId)
+	if err != nil {
+		processCache[processId] = processInfo{}
+		return false
+	}
+	size := uint32(len(imagePath))
+	if err := windows.QueryFullProcessImageName(handle, 0, &imagePath[0], &size); err != nil {
+		windows.CloseHandle(handle)
+		processCache[processId] = processInfo{}
+		return false
+	}
+	name := filepath.Base(windows.UTF16ToString(imagePath[:size]))
+	kakao := strings.ToLower(name) == executable || beta.IsExecutable(name)
+	processCache[processId] = processInfo{handle: handle, kakao: kakao}
+	return kakao
 }
 
-func findKakaoProcesses() map[uint32]struct{} {
-	processIds := make(map[uint32]struct{})
-	snapshot := winapi.CreateToolhelp32Snapshot(winapi.Th32csSnapprocess, 0)
-	if snapshot == winapi.InvalidHandleValue {
-		return processIds
+func forgetExitedProcesses() {
+	for processId, info := range processCache {
+		if info.handle == 0 {
+			delete(processCache, processId)
+			continue
+		}
+		if event, _ := windows.WaitForSingleObject(info.handle, 0); event == windows.WAIT_OBJECT_0 {
+			windows.CloseHandle(info.handle)
+			delete(processCache, processId)
+		}
 	}
-	defer winapi.CloseHandle(snapshot)
+}
 
-	var pe32 winapi.ProcessEntry32
-	pe32.DwSize = uint32(unsafe.Sizeof(pe32))
-	for ok := winapi.Process32First(uintptr(snapshot), &pe32); ok; ok = winapi.Process32Next(uintptr(snapshot), &pe32) {
-		szExeFile := uint8ToStr(pe32.SzExeFile[:])
-		if strings.ToLower(szExeFile) == executable || beta.IsExecutable(szExeFile) {
-			processIds[pe32.Th32ProcessID] = struct{}{}
+func kakaoProcesses() map[uint32]struct{} {
+	processIds := make(map[uint32]struct{})
+	for processId, info := range processCache {
+		if info.kakao {
+			processIds[processId] = struct{}{}
 		}
 	}
 	return processIds
@@ -68,7 +93,7 @@ func findKakaoProcesses() map[uint32]struct{} {
 var trackWindowCallback = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
 	var processId uint32
 	winapi.GetWindowThreadProcessId(handle, &processId)
-	if _, ok := kakaoProcessIds[processId]; !ok {
+	if !isKakaoProcess(processId) {
 		return 1
 	}
 	className := winapi.GetClassName(handle)
@@ -96,9 +121,7 @@ var trackWindowCallback = syscall.NewCallback(func(handle windows.HWND, _ uintpt
 })
 
 func processWindows() bool {
-	if len(kakaoProcessIds) > 0 {
-		winapi.EnumWindows(trackWindowCallback, 0)
-	}
+	winapi.EnumWindows(trackWindowCallback, 0)
 	return removeAds()
 }
 
@@ -233,28 +256,26 @@ func run(ctx context.Context, hooks *winEventHooks) {
 		pass.Reset(delay)
 		passPending = true
 	}
-	refreshProcesses := func() {
-		processIds := findKakaoProcesses()
-		if !maps.Equal(processIds, kakaoProcessIds) {
-			kakaoProcessIds = processIds
-			hooks.watch(processIds)
-		}
-	}
+	watched := make(map[uint32]struct{})
 
-	refreshProcesses()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-poll.C:
-			refreshProcesses()
+			forgetExitedProcesses()
 			schedule(0)
 		case <-winEvents:
 			schedule(eventSettleDelay)
 		case <-pass.C:
 			passPending = false
 			lastPass = time.Now()
-			if processWindows() {
+			refreshPending := processWindows()
+			if processIds := kakaoProcesses(); !maps.Equal(processIds, watched) {
+				watched = processIds
+				hooks.watch(processIds)
+			}
+			if refreshPending {
 				schedule(minPassInterval)
 			}
 		}
