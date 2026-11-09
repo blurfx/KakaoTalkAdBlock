@@ -168,7 +168,7 @@ func removeAd(ctx context.Context) {
 					delete(windowClassMap, wnd)
 					continue
 				}
-				if hasChromeLegacyWindow(wnd) {
+				if winapi.IsWindowVisible(wnd) && hasChromeLegacyWindow(wnd) {
 					winapi.ShowWindow(wnd, 0)
 				}
 			}
