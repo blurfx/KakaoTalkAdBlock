@@ -37,7 +37,26 @@ var (
 	setWindowRgn                 = user32.NewProc("SetWindowRgn")
 	redrawWindow                 = user32.NewProc("RedrawWindow")
 	setThreadDpiAwarenessContext = user32.NewProc("SetThreadDpiAwarenessContext")
+	setWinEventHook              = user32.NewProc("SetWinEventHook")
+	unhookWinEvent               = user32.NewProc("UnhookWinEvent")
+	getMessage                   = user32.NewProc("GetMessageW")
+	peekMessage                  = user32.NewProc("PeekMessageW")
+	postThreadMessage            = user32.NewProc("PostThreadMessageW")
 )
+
+type Point struct {
+	X int32
+	Y int32
+}
+
+type Msg struct {
+	Hwnd    windows.HWND
+	Message uint32
+	WParam  uintptr
+	LParam  uintptr
+	Time    uint32
+	Pt      Point
+}
 
 var windowStyleIndexArg = uintptr(^uint32(15))
 
@@ -178,4 +197,29 @@ func RestoreThreadDpiAwareness(previousContext uintptr) {
 	if previousContext != 0 {
 		setThreadDpiAwarenessContext.Call(previousContext)
 	}
+}
+
+func SetWinEventHook(eventMin, eventMax uint32, callback uintptr, processId, threadId, flags uint32) uintptr {
+	hook, _, _ := setWinEventHook.Call(uintptr(eventMin), uintptr(eventMax), 0, callback, uintptr(processId), uintptr(threadId), uintptr(flags))
+	return hook
+}
+
+func UnhookWinEvent(hook uintptr) bool {
+	r, _, _ := unhookWinEvent.Call(hook)
+	return r != 0
+}
+
+func GetMessage(msg *Msg, hWnd windows.HWND, filterMin, filterMax uint32) int32 {
+	r, _, _ := getMessage.Call(uintptr(unsafe.Pointer(msg)), uintptr(hWnd), uintptr(filterMin), uintptr(filterMax))
+	return int32(r)
+}
+
+func PeekMessage(msg *Msg, hWnd windows.HWND, filterMin, filterMax, removeMsg uint32) bool {
+	r, _, _ := peekMessage.Call(uintptr(unsafe.Pointer(msg)), uintptr(hWnd), uintptr(filterMin), uintptr(filterMax), uintptr(removeMsg))
+	return r != 0
+}
+
+func PostThreadMessage(threadId, msg uint32, wParam, lParam uintptr) bool {
+	r, _, _ := postThreadMessage.Call(uintptr(threadId), uintptr(msg), wParam, lParam)
+	return r != 0
 }

@@ -1,23 +1,33 @@
 package internal
 
 import (
-	"bytes"
 	"context"
 	"kakaotalkadblock/internal/beta"
 	"kakaotalkadblock/internal/win/winapi"
+	"maps"
+	"path/filepath"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
-const sleepTime = 100 * time.Millisecond
-const executable = "kakaotalk.exe"
+const (
+	executable          = "kakaotalk.exe"
+	processPollInterval = time.Second
+	minPassInterval     = 100 * time.Millisecond
+	eventSettleDelay    = 16 * time.Millisecond
+)
 
-var mutex = &sync.Mutex{}
+type processInfo struct {
+	// Kept open so the process ID cannot be reused while cached.
+	handle windows.Handle
+	kakao  bool
+}
+
+var processCache = make(map[uint32]processInfo)
+var imagePath = make([]uint16, windows.MAX_LONG_PATH)
 var mainWindowHandleMap = make(map[windows.HWND]struct{})
 var adSubwindowCandidateMap = make(map[windows.HWND]struct{})
 var windowTextMap = make(map[windows.HWND]string)
@@ -36,146 +46,132 @@ func getChildWindows(parent windows.HWND) []windows.HWND {
 	return append([]windows.HWND(nil), childWindowCollector...)
 }
 
-func uint8ToStr(arr []uint8) string {
-	n := bytes.Index(arr, []uint8{0})
-
-	return string(arr[:n])
+func isKakaoProcess(processId uint32) bool {
+	if info, ok := processCache[processId]; ok {
+		return info.kakao
+	}
+	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION|windows.SYNCHRONIZE, false, processId)
+	if err != nil {
+		processCache[processId] = processInfo{}
+		return false
+	}
+	size := uint32(len(imagePath))
+	if err := windows.QueryFullProcessImageName(handle, 0, &imagePath[0], &size); err != nil {
+		windows.CloseHandle(handle)
+		processCache[processId] = processInfo{}
+		return false
+	}
+	name := filepath.Base(windows.UTF16ToString(imagePath[:size]))
+	kakao := strings.ToLower(name) == executable || beta.IsExecutable(name)
+	processCache[processId] = processInfo{handle: handle, kakao: kakao}
+	return kakao
 }
 
-func watch(ctx context.Context) {
-	var (
-		pe32      winapi.ProcessEntry32
-		szExeFile string
-	)
-	pe32.DwSize = uint32(unsafe.Sizeof(pe32))
-	lastFoundAt := time.Now().Unix() - 2
-	var snapshot windows.HWND
-	var enumWindow = syscall.NewCallback(func(handle windows.HWND, processId uintptr) uintptr {
-		winapi.GetWindowThreadProcessId(handle, &pe32.Th32ProcessID)
-		if processId == uintptr(pe32.Th32ProcessID) {
-			lastFoundAt = time.Now().Unix()
-			className := winapi.GetClassName(handle)
-			parentHandle := winapi.GetParent(handle)
-			beta.TrackWindow(handle, className, parentHandle)
-			if className == "EVA_Window_Dblclk" || className == "EVA_Window" {
-				windowText := winapi.GetWindowText(handle)
-
-				switch className {
-				case "EVA_Window_Dblclk":
-					if windowText != "" && parentHandle == 0 {
-						mainWindowHandleMap[handle] = struct{}{}
-					} else if windowText == "" && parentHandle != 0 {
-						if _, ok := mainWindowHandleMap[parentHandle]; ok {
-							adSubwindowCandidateMap[handle] = struct{}{}
-						}
-					}
-				case "EVA_Window":
-					if windowText == "" && parentHandle == 0 {
-						adSubwindowCandidateMap[handle] = struct{}{}
-					}
-				}
-			}
+func forgetExitedProcesses() {
+	for processId, info := range processCache {
+		if info.handle == 0 {
+			delete(processCache, processId)
+			continue
 		}
+		if event, _ := windows.WaitForSingleObject(info.handle, 0); event == windows.WAIT_OBJECT_0 {
+			windows.CloseHandle(info.handle)
+			delete(processCache, processId)
+		}
+	}
+}
+
+func kakaoProcesses() map[uint32]struct{} {
+	processIds := make(map[uint32]struct{})
+	for processId, info := range processCache {
+		if info.kakao {
+			processIds[processId] = struct{}{}
+		}
+	}
+	return processIds
+}
+
+var trackWindowCallback = syscall.NewCallback(func(handle windows.HWND, _ uintptr) uintptr {
+	var processId uint32
+	winapi.GetWindowThreadProcessId(handle, &processId)
+	if !isKakaoProcess(processId) {
 		return 1
-	})
-	ticker := time.NewTicker(sleepTime)
-	defer ticker.Stop()
-	// Closure, not `defer winapi.CloseHandle(snapshot)`: deferred arguments are
-	// evaluated immediately, which would capture the zero handle.
-	defer func() { winapi.CloseHandle(snapshot) }()
+	}
+	className := winapi.GetClassName(handle)
+	parentHandle := winapi.GetParent(handle)
+	beta.TrackWindow(handle, className, parentHandle)
+	if className == "EVA_Window_Dblclk" || className == "EVA_Window" {
+		windowText := winapi.GetWindowText(handle)
 
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			mutex.Lock()
-			if lastFoundAt < time.Now().Unix()-1 {
-				// Release the previous snapshot before taking a new one.
-				// Without this every refresh leaks a kernel snapshot object,
-				// which happens roughly every 2s while KakaoTalk is not running.
-				winapi.CloseHandle(snapshot)
-				snapshot = winapi.CreateToolhelp32Snapshot(winapi.Th32csSnapprocess, 0)
-				lastFoundAt = time.Now().Unix()
-			}
-			if winapi.Process32First(uintptr(snapshot), &pe32) {
-				for {
-					szExeFile = uint8ToStr(pe32.SzExeFile[:])
-
-					if strings.ToLower(szExeFile) == executable || beta.IsExecutable(szExeFile) {
-						winapi.EnumWindows(enumWindow, uintptr(pe32.Th32ProcessID))
-					}
-
-					if !winapi.Process32Next(uintptr(snapshot), &pe32) {
-						break
-					}
+		switch className {
+		case "EVA_Window_Dblclk":
+			if windowText != "" && parentHandle == 0 {
+				mainWindowHandleMap[handle] = struct{}{}
+			} else if windowText == "" && parentHandle != 0 {
+				if _, ok := mainWindowHandleMap[parentHandle]; ok {
+					adSubwindowCandidateMap[handle] = struct{}{}
 				}
 			}
-			mutex.Unlock()
+		case "EVA_Window":
+			if windowText == "" && parentHandle == 0 {
+				adSubwindowCandidateMap[handle] = struct{}{}
+			}
 		}
 	}
+	return 1
+})
+
+func processWindows() bool {
+	winapi.EnumWindows(trackWindowCallback, 0)
+	return removeAds()
 }
 
-func removeAd(ctx context.Context) {
-	ticker := time.NewTicker(sleepTime)
+func removeAds() bool {
+	for wnd := range mainWindowHandleMap {
+		if wnd == 0 {
+			continue
+		}
+		childHandles := getChildWindows(wnd)
+		if !isMainWindow(childHandles) {
+			continue
+		}
 
-	defer ticker.Stop()
-	defer beta.Restore()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			mutex.Lock()
-			for wnd := range mainWindowHandleMap {
-				if wnd == 0 {
-					continue
+		rect := new(winapi.Rect)
+		winapi.GetWindowRect(wnd, rect)
+		for _, childHandle := range childHandles[1:] {
+			className := getWindowClass(childHandle)
+			windowText := getWindowText(childHandle)
+			parentHandle := winapi.GetParent(childHandle)
+			if parentHandle != wnd {
+				continue
+			}
+			parentText := getWindowText(parentHandle)
+
+			if className == "EVA_ChildWindow" && windowText == "" && parentText != "" {
+				hasCustomScroll, ok := customScrollHandleMap[wnd]
+				if !ok {
+					hasCustomScroll = classNameStartsWith(childHandle, "_EVA_")
+					customScrollHandleMap[wnd] = hasCustomScroll
 				}
-				childHandles := getChildWindows(wnd)
-				if !isMainWindow(childHandles) {
-					continue
-				}
-
-				rect := new(winapi.Rect)
-				winapi.GetWindowRect(wnd, rect)
-				for _, childHandle := range childHandles[1:] {
-					className := getWindowClass(childHandle)
-					windowText := getWindowText(childHandle)
-					parentHandle := winapi.GetParent(childHandle)
-					if parentHandle != wnd {
-						continue
-					}
-					parentText := getWindowText(parentHandle)
-
-					if className == "EVA_ChildWindow" && windowText == "" && parentText != "" {
-						hasCustomScroll, ok := customScrollHandleMap[wnd]
-						if !ok {
-							hasCustomScroll = classNameStartsWith(childHandle, "_EVA_")
-							customScrollHandleMap[wnd] = hasCustomScroll
-						}
-						if !hasCustomScroll {
-							winapi.SendMessage(childHandle, winapi.WmClose, 0, 0)
-						}
-					}
-					HideMainViewAdArea(windowText, rect, childHandle)
-					HideLockScreenAdArea(windowText, rect, childHandle)
+				if !hasCustomScroll {
+					winapi.SendMessage(childHandle, winapi.WmClose, 0, 0)
 				}
 			}
-			for wnd := range adSubwindowCandidateMap {
-				if !winapi.IsWindow(wnd) {
-					delete(adSubwindowCandidateMap, wnd)
-					delete(windowTextMap, wnd)
-					delete(windowClassMap, wnd)
-					continue
-				}
-				if hasChromeLegacyWindow(wnd) {
-					winapi.ShowWindow(wnd, 0)
-				}
-			}
-			beta.RemoveAds()
-			mutex.Unlock()
+			HideMainViewAdArea(windowText, rect, childHandle)
+			HideLockScreenAdArea(windowText, rect, childHandle)
 		}
 	}
+	for wnd := range adSubwindowCandidateMap {
+		if !winapi.IsWindow(wnd) {
+			delete(adSubwindowCandidateMap, wnd)
+			delete(windowTextMap, wnd)
+			delete(windowClassMap, wnd)
+			continue
+		}
+		if winapi.IsWindowVisible(wnd) && hasChromeLegacyWindow(wnd) {
+			winapi.ShowWindow(wnd, 0)
+		}
+	}
+	return beta.RemoveAds()
 }
 
 func classNameStartsWith(handle windows.HWND, className string) bool {
@@ -236,6 +232,52 @@ func getWindowClass(handle windows.HWND) string {
 }
 
 func Run(ctx context.Context) {
-	go watch(ctx)
-	go removeAd(ctx)
+	go run(ctx, startWinEventHooks())
+}
+
+func run(ctx context.Context, hooks *winEventHooks) {
+	defer beta.Restore()
+	defer hooks.stop()
+
+	poll := time.NewTicker(processPollInterval)
+	defer poll.Stop()
+	pass := time.NewTimer(0)
+	defer pass.Stop()
+	passPending := true
+	var lastPass time.Time
+
+	schedule := func(delay time.Duration) {
+		if passPending {
+			return
+		}
+		if wait := minPassInterval - time.Since(lastPass); wait > delay {
+			delay = wait
+		}
+		pass.Reset(delay)
+		passPending = true
+	}
+	watched := make(map[uint32]struct{})
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-poll.C:
+			forgetExitedProcesses()
+			schedule(0)
+		case <-winEvents:
+			schedule(eventSettleDelay)
+		case <-pass.C:
+			passPending = false
+			lastPass = time.Now()
+			refreshPending := processWindows()
+			if processIds := kakaoProcesses(); !maps.Equal(processIds, watched) {
+				watched = processIds
+				hooks.watch(processIds)
+			}
+			if refreshPending {
+				schedule(minPassInterval)
+			}
+		}
+	}
 }
